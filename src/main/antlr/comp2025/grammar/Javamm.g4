@@ -55,45 +55,45 @@ program
     ;
 
 importDecl
-    : IMPORT ID (DOT ID)* SEMI
+    : IMPORT path+=ID (DOT path+=ID)* SEMI
     ;
 
 classDeclaration
-    : CLASS name=ID (EXTENDS ID)?
+    : CLASS name=ID (EXTENDS superClass=ID)?
         LBRACE
         varDeclaration*
         methodDecl*
-        RBRACE
+        RBRACE #ClassDecl
     ;
 
 varDeclaration
-    : type name=ID SEMI
+    : type name=ID SEMI #VarDecl
     ;
 
 type
-    : INT LBRACK RBRACK
-    | INT ELLIPSIS
-    | BOOLEAN
-    | name= INT
-    | ID
-    | STRING
+    : INT LBRACK RBRACK #IntArrayType
+    | INT ELLIPSIS #IntVarArgType
+    | name=BOOLEAN #BooleanType
+    | name=INT #IntType
+    | name=ID #ClassType
+    | name=STRING #StringType
     ;
 
 methodDecl locals[boolean isPublic=false]
     : (PUBLIC {$isPublic=true;})?
-        type name=ID
+        returnType=type name=ID
         LPAREN (param (COMMA param)*)? RPAREN
         LBRACE
             varDeclaration*
             stmt*
             RETURN expr SEMI
-        RBRACE
-    | PUBLIC? STATIC VOID MAIN
+        RBRACE #RegularMethodDecl
+    | (PUBLIC {$isPublic=true;})? STATIC VOID MAIN
         LPAREN STRING LBRACK RBRACK ID RPAREN
         LBRACE
             varDeclaration*
             stmt*
-        RBRACE
+        RBRACE #MainMethodDecl
     ;
 
 param
@@ -101,32 +101,32 @@ param
     ;
 
 stmt
-    : LBRACE stmt* RBRACE
-    | IF LPAREN expr RPAREN stmt ELSE stmt
-    | WHILE LPAREN expr RPAREN stmt
-    | expr SEMI
-    | ID LBRACK expr RBRACK ASSIGN expr SEMI
-    | expr ASSIGN expr SEMI
-    | RETURN expr SEMI
+    : LBRACE stmt* RBRACE #BlockStmt
+    | IF LPAREN expr RPAREN stmt ELSE stmt #IfStmt
+    | WHILE LPAREN expr RPAREN stmt #WhileStmt
+    | expr SEMI #ExprStmt
+    | name=ID LBRACK expr RBRACK ASSIGN expr SEMI #ArrayAssignStmt
+    | expr ASSIGN expr SEMI #AssignStmt
+    | RETURN expr SEMI #ReturnStmt
     ;
 
 expr
-    : LPAREN expr RPAREN
-    | expr LBRACK expr RBRACK
-    | expr DOT LENGTH
-    | expr DOT ID LPAREN (expr (COMMA expr)*)? RPAREN
-    | NEW INT LBRACK expr RBRACK
-    | NEW ID LPAREN RPAREN
-    | LBRACK (expr (COMMA expr)*)? RBRACK
-    | NOT expr
-    | expr op=(MULT | DIV) expr
-    | expr op=(PLUS | MINUS) expr
-    | expr op=LT expr
-    | expr op=AND expr
-    | value=INTEGER
-    | TRUE
-    | FALSE
-    | name=ID
-    | THIS
+    : LPAREN expr RPAREN #ParenExpr
+    | expr LBRACK expr RBRACK #ArrayAccessExpr
+    | expr DOT LENGTH #LengthExpr
+    | expr DOT name=ID LPAREN (expr (COMMA expr)*)? RPAREN #MethodCallExpr
+    | NEW INT LBRACK expr RBRACK #NewIntArrayExpr
+    | NEW name=ID LPAREN RPAREN #NewObjectExpr
+    | LBRACK (expr (COMMA expr)*)? RBRACK #ArrayExpr
+    | NOT expr #NotExpr
+    | expr op=(MULT | DIV) expr #BinaryExpr
+    | expr op=(PLUS | MINUS) expr #BinaryExpr
+    | expr op=LT expr #BinaryExpr
+    | expr op=AND expr #BinaryExpr
+    | value=INTEGER #IntegerLiteral
+    | TRUE #BooleanLiteralTrue
+    | FALSE #BooleanLiteralFalse
+    | name=ID #VarRefExpr
+    | THIS #ThisExpr
     ;
 

@@ -8,36 +8,92 @@ CLASS : 'class' ;
 INT : 'int' ;
 PUBLIC : 'public' ;
 RETURN : 'return' ;
+IMPORT : 'import' ;
+EXTENDS : 'extends' ;
+BOOLEAN : 'boolean' ;
+STATIC : 'static' ;
+VOID : 'void' ;
+MAIN : 'main' ;
+STRING : 'String' ;
+IF : 'if' ;
+ELSE : 'else' ;
+WHILE : 'while' ;
+NEW : 'new' ;
+THIS : 'this' ;
+TRUE : 'true' ;
+FALSE : 'false' ;
+LENGTH : 'length' ;
 
-INTEGER : [0-9] ;
-ID : [a-zA-Z]+ ;
+DOT : '.' ;
+SEMI : ';' ;
+LBRACE : '{' ;
+RBRACE : '}' ;
+LBRACK : '[' ;
+RBRACK : ']' ;
+LPAREN : '(' ;
+RPAREN : ')' ;
+ELLIPSIS : '...' ;
+COMMA : ',' ;
+ASSIGN : '=' ;
+AND : '&&' ;
+LT : '<' ;
+PLUS : '+' ;
+MINUS : '-' ;
+MULT : '*' ;
+DIV : '/' ;
+NOT : '!' ;
+
+INTEGER : '0' | [1-9][0-9]* ;
+ID : [a-zA-Z_$][a-zA-Z_$0-9]* ;
 
 WS : [ \t\n\r\f]+ -> skip ;
+LINE_COMMENT : '//' ~[\r\n]* -> skip ;
+BLOCK_COMMENT : '/*' .*? '*/' -> skip ;
 
 program
-    : classDecl EOF
+    : importDecl* classDeclaration EOF
     ;
 
+importDecl
+    : IMPORT ID (DOT ID)* SEMI
+    ;
 
-classDecl
-    : CLASS name=ID
-        '{'
+classDeclaration
+    : CLASS name=ID (EXTENDS ID)?
+        LBRACE
+        varDeclaration*
         methodDecl*
-        '}'
+        RBRACE
     ;
 
-varDecl
-    : type name=ID ';'
+varDeclaration
+    : type name=ID SEMI
     ;
 
 type
-    : name= INT ;
+    : INT LBRACK RBRACK
+    | INT ELLIPSIS
+    | BOOLEAN
+    | name= INT
+    | ID
+    | STRING
+    ;
 
 methodDecl locals[boolean isPublic=false]
     : (PUBLIC {$isPublic=true;})?
         type name=ID
-        '(' param ')'
-        '{' varDecl* stmt* '}'
+        LPAREN (param (COMMA param)*)? RPAREN
+        LBRACE
+            varDeclaration*
+            stmt*
+            RETURN expr SEMI
+        RBRACE
+    | PUBLIC? STATIC VOID MAIN
+        LPAREN STRING LBRACK RBRACK ID RPAREN
+        LBRACE
+            varDeclaration*
+            stmt*
+        RBRACE
     ;
 
 param
@@ -45,14 +101,32 @@ param
     ;
 
 stmt
-    : expr '=' expr ';' #AssignStmt //
-    | RETURN expr ';' #ReturnStmt
+    : LBRACE stmt* RBRACE
+    | IF LPAREN expr RPAREN stmt ELSE stmt
+    | WHILE LPAREN expr RPAREN stmt
+    | expr SEMI
+    | ID LBRACK expr RBRACK ASSIGN expr SEMI
+    | expr ASSIGN expr SEMI
+    | RETURN expr SEMI
     ;
 
 expr
-    : expr op= '*' expr #BinaryExpr //
-    | expr op= '+' expr #BinaryExpr //
-    | value=INTEGER #IntegerLiteral //
-    | name=ID #VarRefExpr //
+    : LPAREN expr RPAREN
+    | expr LBRACK expr RBRACK
+    | expr DOT LENGTH
+    | expr DOT ID LPAREN (expr (COMMA expr)*)? RPAREN
+    | NEW INT LBRACK expr RBRACK
+    | NEW ID LPAREN RPAREN
+    | LBRACK (expr (COMMA expr)*)? RBRACK
+    | NOT expr
+    | expr op=(MULT | DIV) expr
+    | expr op=(PLUS | MINUS) expr
+    | expr op=LT expr
+    | expr op=AND expr
+    | value=INTEGER
+    | TRUE
+    | FALSE
+    | name=ID
+    | THIS
     ;
 

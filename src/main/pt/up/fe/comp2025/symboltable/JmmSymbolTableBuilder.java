@@ -38,16 +38,19 @@ public class JmmSymbolTableBuilder {
 
         reports = new ArrayList<>();
 
+        var imports = buildImports(root);
+
         // TODO: After your grammar supports more things inside the program (e.g., imports) you will have to change this
-        var classDecl = root.getChild(0);
+        var classDecl = root.getChild(imports.size()); // TODO: melhorar isto
         SpecsCheck.checkArgument(Kind.CLASS_DECL.check(classDecl), () -> "Expected a class declaration: " + classDecl);
         String className = classDecl.get("name");
         var methods = buildMethods(classDecl);
         var returnTypes = buildReturnTypes(classDecl);
         var params = buildParams(classDecl);
         var locals = buildLocals(classDecl);
+        var fields = buildFields(classDecl);
 
-        return new JmmSymbolTable(className, methods, returnTypes, params, locals);
+        return new JmmSymbolTable(className, methods, returnTypes, params, locals, fields, imports);
     }
 
 
@@ -56,9 +59,13 @@ public class JmmSymbolTableBuilder {
 
         for (var method : classDecl.getChildren(METHOD_DECL)) {
             var name = method.get("name");
-            // TODO: After you add more types besides 'int', you will have to update this
-            var returnType = TypeUtils.newIntType();
-            map.put(name, returnType);
+            if (method.getKind().equals("RegularMethodDecl")) {
+                var typeNode = method.getChild(0);
+                var returnType = TypeUtils.convertType(typeNode);
+                map.put(name, returnType);
+            } else if (method.getKind().equals("MainMethodDecl")) {
+                map.put(name, new Type("void", false));
+            }
         }
 
         return map;
@@ -72,7 +79,8 @@ public class JmmSymbolTableBuilder {
             var name = method.get("name");
             var params = method.getChildren(PARAM).stream()
                     // TODO: When you support new types, this code has to be updated
-                    .map(param -> new Symbol(TypeUtils.newIntType(), param.get("name")))
+                    //.map(param -> new Symbol(TypeUtils.newIntType(), param.get("name")))
+                    .map(param -> new Symbol(TypeUtils.convertType(param.getChild(0)), param.get("name")))
                     .toList();
 
             map.put(name, params);
@@ -89,7 +97,7 @@ public class JmmSymbolTableBuilder {
             var name = method.get("name");
             var locals = method.getChildren(VAR_DECL).stream()
                     // TODO: When you support new types, this code has to be updated
-                    .map(varDecl -> new Symbol(TypeUtils.newIntType(), varDecl.get("name")))
+                    .map(varDecl -> new Symbol(TypeUtils.convertType(varDecl.getChild(0)), varDecl.get("name")))
                     .toList();
 
 
@@ -106,6 +114,30 @@ public class JmmSymbolTableBuilder {
                 .toList();
 
         return methods;
+    }
+
+    private List<Symbol> buildFields(JmmNode classDecl) {
+        List<Symbol> fields = new ArrayList<>();
+
+        for (var field : classDecl.getChildren(VAR_DECL)) {
+            var name = field.get("name");
+            var typeNode = field.getChild(0);
+            var fieldType = TypeUtils.convertType(typeNode);
+            fields.add(new Symbol(fieldType, name));
+        }
+
+        return fields;
+    }
+
+    private List<String> buildImports(JmmNode root) {
+        List<String> imports = new ArrayList<>();
+
+        for (var importDecl : root.getChildren(IMPORT_DECL)) {
+            var parts = importDecl.get("path");
+            imports.add(String.join(".", parts.substring(1, parts.length() - 1).split(",")));
+        }
+
+        return imports;
     }
 
 

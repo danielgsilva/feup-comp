@@ -51,19 +51,19 @@ LINE_COMMENT : '//' ~[\r\n]* -> skip ;
 BLOCK_COMMENT : '/*' .*? '*/' -> skip ;
 
 program
-    : importDecl* classDeclaration EOF
+    : importDecl* classDecl EOF
     ;
 
 importDecl
     : IMPORT path+=ID (DOT path+=ID)* SEMI
     ;
 
-classDeclaration
+classDecl
     : CLASS name=ID (EXTENDS superClass=ID)?
         LBRACE
         varDeclaration*
         methodDecl*
-        RBRACE #ClassDecl
+        RBRACE
     ;
 
 varDeclaration
@@ -71,8 +71,8 @@ varDeclaration
     ;
 
 type
-    : INT LBRACK RBRACK #IntArrayType
-    | INT ELLIPSIS #IntVarArgType
+    : name=INT LBRACK RBRACK #IntArrayType
+    | name=INT ELLIPSIS #IntVarArgType
     | name=BOOLEAN #BooleanType
     | name=INT #IntType
     | name=ID #ClassType
@@ -88,8 +88,8 @@ methodDecl locals[boolean isPublic=false]
             stmt*
             RETURN expr SEMI
         RBRACE #RegularMethodDecl
-    | (PUBLIC {$isPublic=true;})? STATIC VOID MAIN
-        LPAREN STRING LBRACK RBRACK ID RPAREN
+    | (PUBLIC {$isPublic=true;})? STATIC VOID name=MAIN
+        LPAREN STRING LBRACK RBRACK argName=ID RPAREN
         LBRACE
             varDeclaration*
             stmt*

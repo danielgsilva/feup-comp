@@ -70,11 +70,10 @@ varDeclaration
     : type name=ID SEMI #VarDecl
     ;
 
-type
-    : name=INT LBRACK RBRACK #IntArrayType
+type locals [boolean isArray = false]
+    : name=INT (LBRACK RBRACK {$isArray = true;})? #IntType
     | name=INT ELLIPSIS #IntVarArgType
     | name=BOOLEAN #BooleanType
-    | name=INT #IntType
     | name=ID #ClassType
     | name=STRING #StringType
     ;

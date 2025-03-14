@@ -18,6 +18,7 @@ public class JmmSymbolTable extends AJmmSymbolTable {
     private final Map<String, List<Symbol>> locals;
     private List<Symbol> fields;
     private List<String> imports;
+    private String superClassName;
 
 
     public JmmSymbolTable(String className,
@@ -26,7 +27,8 @@ public class JmmSymbolTable extends AJmmSymbolTable {
                           Map<String, List<Symbol>> params,
                           Map<String, List<Symbol>> locals,
                           List<Symbol> fields,
-                          List<String> imports) {
+                          List<String> imports,
+                          String superClassName) {
 
         this.className = className;
         this.methods = methods;
@@ -35,6 +37,7 @@ public class JmmSymbolTable extends AJmmSymbolTable {
         this.locals = locals;
         this.fields = fields;
         this.imports = imports;
+        this.superClassName = superClassName;
     }
 
     @Override
@@ -49,7 +52,7 @@ public class JmmSymbolTable extends AJmmSymbolTable {
 
     @Override
     public String getSuper() {
-        throw new NotImplementedException();
+        return superClassName;
     }
 
     @Override

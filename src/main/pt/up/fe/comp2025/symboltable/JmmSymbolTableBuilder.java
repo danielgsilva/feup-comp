@@ -44,13 +44,14 @@ public class JmmSymbolTableBuilder {
         var classDecl = root.getChild(imports.size()); // TODO: melhorar isto
         SpecsCheck.checkArgument(Kind.CLASS_DECL.check(classDecl), () -> "Expected a class declaration: " + classDecl);
         String className = classDecl.get("name");
+        String superClassName = classDecl.getOptional("superClass").orElse(null);
         var methods = buildMethods(classDecl);
         var returnTypes = buildReturnTypes(classDecl);
         var params = buildParams(classDecl);
         var locals = buildLocals(classDecl);
         var fields = buildFields(classDecl);
 
-        return new JmmSymbolTable(className, methods, returnTypes, params, locals, fields, imports);
+        return new JmmSymbolTable(className, methods, returnTypes, params, locals, fields, imports, superClassName);
     }
 
 

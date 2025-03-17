@@ -28,7 +28,7 @@ public enum Kind {
     INTEGER_LITERAL,
     VAR_REF_EXPR,
     IMPORT_DECL,
-    METHOD_CALL;
+    METHOD_CALL_EXPR;
 
 
     private final String name;

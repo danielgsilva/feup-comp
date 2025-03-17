@@ -49,7 +49,7 @@ public class UndeclaredVariable extends AnalysisVisitor {
 
         // Var is a field, return
         if (table.getFields().stream()
-                .anyMatch(param -> param.getName().equals(varRefName))) {
+                .anyMatch(field -> field.getName().equals(varRefName))) {
             return null;
         }
 

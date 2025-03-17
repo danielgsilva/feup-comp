@@ -13,6 +13,14 @@ public class TypeUtils {
 
     private final JmmSymbolTable table;
 
+    private static final String MULT = "*";
+    private static final String DIV = "/";
+    private static final String PLUS = "+";
+    private static final String MINUS = "-";
+    private static final String LT = "<";
+    private static final String AND = "&&";
+    private static final String NOT = "!";
+
     public TypeUtils(SymbolTable table) {
         this.table = (JmmSymbolTable) table;
     }
@@ -20,6 +28,7 @@ public class TypeUtils {
     public static Type newIntType() {
         return new Type("int", false);
     }
+    public static Type newBooleanType() { return new Type("boolean", false); }
 
     public static Type convertType(JmmNode typeNode) {
 
@@ -38,9 +47,24 @@ public class TypeUtils {
      * @return
      */
     public Type getExprType(JmmNode expr) {
-
         // TODO: Update when there are new types
-        return new Type("int", false);
+
+        switch (Kind.fromString(expr.getKind())) {
+            case BINARY_EXPR:
+                return getBinaryExprType(expr);
+            default:
+                throw new IllegalArgumentException("Unsupported expression type: " + expr.getKind());
+        }
+    }
+
+    private static Type getBinaryExprType(JmmNode binaryExpr) {
+        var operator = binaryExpr.get("op");
+        return switch (operator) {
+            case MULT, DIV, PLUS, MINUS, LT -> newIntType();
+            case NOT, AND -> newBooleanType();
+            default ->
+                    throw new RuntimeException("Unknown operator " + operator);
+        };
     }
 
 

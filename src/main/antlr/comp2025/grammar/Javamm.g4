@@ -123,8 +123,8 @@ expr
     | expr op=LT expr #BinaryExpr
     | expr op=AND expr #BinaryExpr
     | value=INTEGER #IntegerLiteral
-    | TRUE #BooleanLiteralTrue
-    | FALSE #BooleanLiteralFalse
+    | TRUE #BooleanLiteral
+    | FALSE #BooleanLiteral
     | name=ID #VarRefExpr
     | THIS #ThisExpr
     ;

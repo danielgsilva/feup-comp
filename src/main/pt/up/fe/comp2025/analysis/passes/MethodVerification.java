@@ -124,21 +124,20 @@ public class MethodVerification extends AnalysisVisitor {
 //
 //        return null;
 //    }
+
     @Override
     public void buildVisitor() {
         System.out.println("Building MethodVerification visitor");
 
-        // Try to catch any node that might be a method call
+        // Catch all nodes that might represent method calls
         addVisit(Kind.METHOD_CALL_EXPR, this::visitAllNodes);
     }
 
     private Void visitAllNodes(JmmNode node, SymbolTable table) {
         System.out.println("Visiting node: " + node.getKind());
 
-        // Check if this node looks like a method call
-        if (node.getKind().equals("MethodCall") ||
-                node.getKind().equals("METHOD_CALL")) {
-
+        // Check if this node represents a method call
+        if (isMethodCall(node)) {
             System.out.println("Potential method call found: " + node);
             System.out.println("Attributes: " + node.getAttributes());
 
@@ -146,41 +145,57 @@ public class MethodVerification extends AnalysisVisitor {
                 String methodName = node.get("name");
                 System.out.println("Method name: " + methodName);
 
-                // Check if this method exists in the table
-                if (!table.getMethods().contains(methodName) && table.getSuper().isEmpty()) {
-                    System.out.println("Method not found and no superclass, adding error");
-                    addReport(Report.newError(
-                            Stage.SEMANTIC,
-                            node.getLine(),
-                            node.getColumn(),
-                            "Method '" + methodName + "' does not exist in this class or its superclasses.",
-                            null)
-                    );
+                // Check if this method exists in the current class
+                if (!table.getMethods().contains(methodName)) {
+                    // Handle null or empty superclass (treat it as no superclass)
+                    String superClass = table.getSuper();
+                    if (superClass == null || superClass.isEmpty()) {
+                        // Check if the method is assumed to exist in an imported class
+                        if (!isMethodInImportedClass(methodName, table)) {
+                            System.out.println("Method not found in current class, superclass, or imported classes, adding error");
+                            addReport(Report.newError(
+                                    Stage.SEMANTIC,
+                                    node.getLine(),
+                                    node.getColumn(),
+                                    "Method '" + methodName + "' does not exist in this class, its superclasses, or imported classes.",
+                                    null)
+                            );
+                        } else {
+                            System.out.println("Method assumed to exist in imported class.");
+                        }
+                    } else {
+                        System.out.println("Method not found, but superclass exists. Assuming method might be in superclass.");
+                    }
                 }
             }
         }
 
-        // Alternative approach: Look for nodes with specific attributes
-        if (node.hasAttribute("name") && !node.getChildren().isEmpty()) {
-            String potentialMethodName = node.get("name");
-            System.out.println("Node with name attribute: " + potentialMethodName);
-
-            // If it looks like a method call to "bar"
-            if (potentialMethodName.equals("bar")) {
-                System.out.println("Found potential call to 'bar'");
-
-                // Create an error report
-                addReport(Report.newError(
-                        Stage.SEMANTIC,
-                        node.getLine(),
-                        node.getColumn(),
-                        "Method 'bar' does not exist in this class or its superclasses.",
-                        null)
-                );
-            }
-        }
-
         return null;
+    }
+
+    /**
+     * Helper method to check if a node represents a method call.
+     */
+    private boolean isMethodCall(JmmNode node) {
+        // Check if the node kind indicates a method call
+        return node.getKind().equals("MethodCall") ||
+                node.getKind().equals("METHOD_CALL") ||
+                node.getKind().equals("MethodCallExpr");
+    }
+
+    /**
+     * Helper method to check if a method exists in an imported class.
+     */
+    private boolean isMethodInImportedClass(String methodName, SymbolTable table) {
+        // Get the list of imported classes from the SymbolTable
+        var imports = table.getImports();
+        for (String importedClass : imports) {
+            // Assume that the method exists in the imported class
+            // (In a real implementation, you would need to check the imported class's methods)
+            System.out.println("Assuming method '" + methodName + "' exists in imported class: " + importedClass);
+            return true;
+        }
+        return false;
     }
 
 }

@@ -28,7 +28,8 @@ public enum Kind {
     INTEGER_LITERAL,
     VAR_REF_EXPR,
     IMPORT_DECL,
-    BOOLEAN_LITERAL,;
+    BOOLEAN_LITERAL,
+    ARRAY_ACCESS_EXPR;
 
 
     private final String name;

@@ -28,6 +28,7 @@ public class TypeUtils {
     public static Type newIntType() {
         return new Type("int", false);
     }
+    public static Type newArrayIntType() { return new Type("int", true);}
     public static Type newBooleanType() { return new Type("boolean", false); }
 
     public static Type convertType(JmmNode typeNode) {

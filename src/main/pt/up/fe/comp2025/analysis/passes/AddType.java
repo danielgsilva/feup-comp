@@ -79,8 +79,17 @@ public class AddType extends AnalysisVisitor {
             }
         }
 
-        // Variable not found
-        throw new IllegalArgumentException("Variable '" + varRefExpr.get("name") + "' not found in method '" + currentMethod + "'");
+        // Create error report
+        var message = String.format("Variable '%s' not found in method '%s'", varRefExpr.get("name"), currentMethod);
+        addReport(Report.newError(
+                Stage.SEMANTIC,
+                varRefExpr.getLine(),
+                varRefExpr.getColumn(),
+                message,
+                null)
+        );
+
+        return null;
     }
 
     private Void visitArrayAccessExpr(JmmNode arrayAccessExpr, SymbolTable table) {

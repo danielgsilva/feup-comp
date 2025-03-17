@@ -35,17 +35,17 @@ public class AddType extends AnalysisVisitor {
 
     private Void visitBinaryExpr(JmmNode binaryExpr, SymbolTable table) {
         Type type = types.getExprType(binaryExpr);
-        binaryExpr.put("type", type.getName());
+        binaryExpr.put("type", type.toString());
         return null;
     }
 
     private Void visitIntegerLiteral(JmmNode integerLiteral, SymbolTable table) {
-        integerLiteral.put("type", TypeUtils.newIntType().getName());
+        integerLiteral.put("type", TypeUtils.newIntType().toString());
         return null;
     }
 
     private Void visitBooleanLiteral(JmmNode booleanLiteral, SymbolTable table) {
-        booleanLiteral.put("type", TypeUtils.newBooleanType().getName());
+        booleanLiteral.put("type", TypeUtils.newBooleanType().toString());
         return null;
     }
 
@@ -55,7 +55,7 @@ public class AddType extends AnalysisVisitor {
         // Check if the variable is a local variable
         for (var localVar : table.getLocalVariables(currentMethod)) {
             if (localVar.getName().equals(varRefName)) {
-                varRefExpr.put("type", localVar.getType().getName());
+                varRefExpr.put("type", localVar.getType().toString());
                 return null;
             }
         }
@@ -63,7 +63,7 @@ public class AddType extends AnalysisVisitor {
         // Check if the variable is a parameter
         for (var param: table.getParameters(currentMethod)) {
             if (param.getName().equals(varRefName)) {
-                varRefExpr.put("type", param.getType().getName());
+                varRefExpr.put("type", param.getType().toString());
                 return null;
             }
         }
@@ -71,7 +71,7 @@ public class AddType extends AnalysisVisitor {
         // Check if the variable is a field
         for (var field : table.getFields()) {
             if (field.getName().equals(varRefName)) {
-                varRefExpr.put("type", field.getType().getName());
+                varRefExpr.put("type", field.getType().toString());
                 return null;
             }
         }

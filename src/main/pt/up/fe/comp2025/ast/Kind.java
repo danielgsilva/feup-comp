@@ -29,7 +29,12 @@ public enum Kind {
     VAR_REF_EXPR,
     IMPORT_DECL,
     BOOLEAN_LITERAL,
-    ARRAY_ACCESS_EXPR;
+    ARRAY_ACCESS_EXPR,
+    ARRAY_EXPR,
+    ARRAY_ASSIGN_STMT,
+    NEW_INT_ARRAY_EXPR,
+    NEW_OBJECT_EXPR
+    ;
 
 
     private final String name;

@@ -29,6 +29,11 @@ public class AddType extends AnalysisVisitor {
         addVisit(Kind.BOOLEAN_LITERAL, this::visitBooleanLiteral);
         addVisit(Kind.VAR_REF_EXPR, this::visitVarRefExpr);
         addVisit(Kind.ARRAY_ACCESS_EXPR, this::visitArrayAccessExpr);
+        addVisit(Kind.ARRAY_EXPR, this::visitArrayExpr);
+        addVisit(Kind.ASSIGN_STMT, this::visitAssignStmt);
+        addVisit(Kind.NEW_INT_ARRAY_EXPR, this::visitNewIntArrayExpr);
+        addVisit(Kind.NEW_OBJECT_EXPR, this::visitNewObjectExpr);
+
     }
 
     private Void visitMethodDecl(JmmNode method, SymbolTable table) {
@@ -53,30 +58,11 @@ public class AddType extends AnalysisVisitor {
     }
 
     private Void visitVarRefExpr(JmmNode varRefExpr, SymbolTable table) {
-        var varRefName = varRefExpr.get("name");
+        Type varRefExprType = types.getExprType(varRefExpr);
 
-        // Check if the variable is a local variable
-        for (var localVar : table.getLocalVariables(currentMethod)) {
-            if (localVar.getName().equals(varRefName)) {
-                varRefExpr.put("type", localVar.getType().toString());
-                return null;
-            }
-        }
-
-        // Check if the variable is a parameter
-        for (var param: table.getParameters(currentMethod)) {
-            if (param.getName().equals(varRefName)) {
-                varRefExpr.put("type", param.getType().toString());
-                return null;
-            }
-        }
-
-        // Check if the variable is a field
-        for (var field : table.getFields()) {
-            if (field.getName().equals(varRefName)) {
-                varRefExpr.put("type", field.getType().toString());
-                return null;
-            }
+        if (varRefExprType != null) {
+            varRefExpr.put("type", varRefExprType.toString());
+            return null;
         }
 
         // Create error report
@@ -112,5 +98,49 @@ public class AddType extends AnalysisVisitor {
 
         return null;
     }
+
+    private Void visitArrayExpr(JmmNode arrayExpr, SymbolTable table) {
+        visit(arrayExpr.getChild(0), table);
+        var typeFirstElem = TypeUtils.getNameType(arrayExpr.getChild(0).get("type"));
+        // assume all elements have the same type
+        arrayExpr.put("type", TypeUtils.newArrayType(typeFirstElem).toString());
+
+        return null;
+    }
+
+    private Void visitAssignStmt(JmmNode assignStmt, SymbolTable table) {
+        Type assignStmtType = types.getExprType(assignStmt);
+        visit(assignStmt.getChild(0), table);
+        if (assignStmtType.toString().equals(assignStmt.getChild(0).get("type"))){
+            assignStmt.put("type", assignStmtType.toString());
+            return null;
+        }
+
+        // Create error report
+        var message = String.format("Type of the assignee must be compatible with the assigned. '%s' cannot be converted to '%s'",
+                assignStmtType, assignStmt.getChild(0).get("type"));
+        addReport(Report.newError(
+                Stage.SEMANTIC,
+                assignStmt.getLine(),
+                assignStmt.getColumn(),
+                message,
+                null)
+        );
+
+        return null;
+    }
+
+    private Void visitNewIntArrayExpr(JmmNode newIntArrayExpr, SymbolTable table) {
+        newIntArrayExpr.put("type", TypeUtils.newArrayIntType().toString());
+        return null;
+    }
+
+    private Void visitNewObjectExpr(JmmNode newObjectExpr, SymbolTable table) {
+        var className = newObjectExpr.get("name");
+        newObjectExpr.put("type", TypeUtils.newType(className).toString());
+        return null;
+    }
+
+
 
 }

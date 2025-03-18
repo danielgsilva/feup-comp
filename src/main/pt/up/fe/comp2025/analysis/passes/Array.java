@@ -7,17 +7,17 @@ import pt.up.fe.comp.jmm.report.Stage;
 import pt.up.fe.comp2025.analysis.AnalysisVisitor;
 import pt.up.fe.comp2025.ast.Kind;
 import pt.up.fe.comp2025.ast.TypeUtils;
-import pt.up.fe.specs.util.SpecsCheck;
 
 /**
  * Checks ...
  *
  */
-public class ArrayIndexOutOfBounds extends AnalysisVisitor {
+public class Array extends AnalysisVisitor {
 
     @Override
     public void buildVisitor() {
         addVisit(Kind.ARRAY_ACCESS_EXPR, this::visitArrayAccessExpr);
+        addVisit(Kind.ARRAY_EXPR, this::visitArrayExpr);
     }
 
     private Void visitArrayAccessExpr(JmmNode arrayAccessExpr, SymbolTable table) {
@@ -39,5 +39,25 @@ public class ArrayIndexOutOfBounds extends AnalysisVisitor {
         return null;
     }
 
+    private Void visitArrayExpr(JmmNode arrayExpr, SymbolTable table) {
+        if (arrayExpr.getChildren().isEmpty()) return null;
+        var arrayExpTtype = arrayExpr.get("type");
+        var type = TypeUtils.newType(TypeUtils.getNameType(arrayExpTtype));
+        for (var elem : arrayExpr.getChildren()) {
+            visit(elem, table);
+            if (!elem.get("type").equals(type.toString())) {
+                // Create error report
+                var message = String.format("Array elements must be of type '%s' but found '%s'", type, elem.get("type"));
+                addReport(Report.newError(
+                        Stage.SEMANTIC,
+                        elem.getLine(),
+                        elem.getColumn(),
+                        message,
+                        null)
+                );
+            }
+        }
+        return null;
+    }
 
 }

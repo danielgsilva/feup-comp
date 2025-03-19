@@ -1,0 +1,146 @@
+package pt.up.fe.comp2025.analysis.passes;
+
+import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
+import pt.up.fe.comp.jmm.analysis.table.Type;
+import pt.up.fe.comp.jmm.ast.JmmNode;
+import pt.up.fe.comp.jmm.report.Report;
+import pt.up.fe.comp.jmm.report.Stage;
+import pt.up.fe.comp2025.analysis.AnalysisVisitor;
+import pt.up.fe.comp2025.ast.Kind;
+import pt.up.fe.comp2025.ast.TypeUtils;
+
+/**
+ * Annotates each expression node with its type.
+ */
+public class AddType extends AnalysisVisitor {
+
+    private String currentMethod;
+    private final TypeUtils types;
+
+    public AddType(SymbolTable table) {
+        this.types = new TypeUtils(table);
+    }
+
+    @Override
+    public void buildVisitor() {
+        addVisit(Kind.METHOD_DECL, this::visitMethodDecl);
+        addVisit(Kind.BINARY_EXPR, this::visitBinaryExpr);
+        addVisit(Kind.INTEGER_LITERAL, this::visitIntegerLiteral);
+        addVisit(Kind.BOOLEAN_LITERAL, this::visitBooleanLiteral);
+        addVisit(Kind.VAR_REF_EXPR, this::visitVarRefExpr);
+        addVisit(Kind.ARRAY_ACCESS_EXPR, this::visitArrayAccessExpr);
+        addVisit(Kind.ARRAY_EXPR, this::visitArrayExpr);
+        addVisit(Kind.ASSIGN_STMT, this::visitAssignStmt);
+        addVisit(Kind.NEW_INT_ARRAY_EXPR, this::visitNewIntArrayExpr);
+        addVisit(Kind.NEW_OBJECT_EXPR, this::visitNewObjectExpr);
+
+    }
+
+    private Void visitMethodDecl(JmmNode method, SymbolTable table) {
+        currentMethod = method.get("name");
+        return null;
+    }
+
+    private Void visitBinaryExpr(JmmNode binaryExpr, SymbolTable table) {
+        Type type = types.getExprType(binaryExpr);
+        binaryExpr.put("type", type.toString());
+        return null;
+    }
+
+    private Void visitIntegerLiteral(JmmNode integerLiteral, SymbolTable table) {
+        integerLiteral.put("type", TypeUtils.newIntType().toString());
+        return null;
+    }
+
+    private Void visitBooleanLiteral(JmmNode booleanLiteral, SymbolTable table) {
+        booleanLiteral.put("type", TypeUtils.newBooleanType().toString());
+        return null;
+    }
+
+    private Void visitVarRefExpr(JmmNode varRefExpr, SymbolTable table) {
+        Type varRefExprType = types.getExprType(varRefExpr);
+
+        if (varRefExprType != null) {
+            varRefExpr.put("type", varRefExprType.toString());
+            return null;
+        }
+
+        // Create error report
+        var message = String.format("Variable '%s' not found in method '%s'", varRefExpr.get("name"), currentMethod);
+        addReport(Report.newError(
+                Stage.SEMANTIC,
+                varRefExpr.getLine(),
+                varRefExpr.getColumn(),
+                message,
+                null)
+        );
+
+        return null;
+    }
+
+    private Void visitArrayAccessExpr(JmmNode arrayAccessExpr, SymbolTable table) {
+        var arrayId = arrayAccessExpr.getChild(0);
+        visit(arrayId, table);
+        if (arrayId.get("type").equals(TypeUtils.newArrayIntType().toString())) {
+            arrayAccessExpr.put("type", TypeUtils.newIntType().toString());
+            return null;
+        }
+
+        // Create error report
+        var message = String.format("Array access done over an array expected, got '%s' instead", arrayId.get("type"));
+        addReport(Report.newError(
+                Stage.SEMANTIC,
+                arrayAccessExpr.getLine(),
+                arrayAccessExpr.getColumn(),
+                message,
+                null)
+        );
+
+        return null;
+    }
+
+    private Void visitArrayExpr(JmmNode arrayExpr, SymbolTable table) {
+        visit(arrayExpr.getChild(0), table);
+        var typeFirstElem = TypeUtils.getNameType(arrayExpr.getChild(0).get("type"));
+        // assume all elements have the same type
+        arrayExpr.put("type", TypeUtils.newArrayType(typeFirstElem).toString());
+
+        return null;
+    }
+
+    private Void visitAssignStmt(JmmNode assignStmt, SymbolTable table) {
+        Type assignStmtType = types.getExprType(assignStmt);
+        visit(assignStmt.getChild(0), table);
+        if (assignStmtType.toString().equals(assignStmt.getChild(0).get("type"))){
+            assignStmt.put("type", assignStmtType.toString());
+            return null;
+        }
+
+        // Create error report
+        var message = String.format("Type of the assignee must be compatible with the assigned. '%s' cannot be converted to '%s'",
+                assignStmtType, assignStmt.getChild(0).get("type"));
+        addReport(Report.newError(
+                Stage.SEMANTIC,
+                assignStmt.getLine(),
+                assignStmt.getColumn(),
+                message,
+                null)
+        );
+
+        return null;
+    }
+
+    private Void visitNewIntArrayExpr(JmmNode newIntArrayExpr, SymbolTable table) {
+        newIntArrayExpr.put("type", TypeUtils.newArrayIntType().toString());
+        return null;
+    }
+
+    private Void visitNewObjectExpr(JmmNode newObjectExpr, SymbolTable table) {
+        var className = newObjectExpr.get("name");
+        newObjectExpr.put("type", TypeUtils.newType(className).toString());
+        return null;
+    }
+
+
+
+}

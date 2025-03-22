@@ -109,16 +109,32 @@ public class AddType extends AnalysisVisitor {
     }
 
     private Void visitAssignStmt(JmmNode assignStmt, SymbolTable table) {
-        Type assignStmtType = types.getExprType(assignStmt);
-        visit(assignStmt.getChild(0), table);
-        if (assignStmtType.toString().equals(assignStmt.getChild(0).get("type"))){
-            assignStmt.put("type", assignStmtType.toString());
+        // assignee = assigned
+        Type assigneeType = types.getExprType(assignStmt);
+        var assigned = assignStmt.getChild(0);
+        visit(assigned, table);
+
+        // Check if the type of the assignee is compatible with the assigned
+
+        if (assigneeType.toString().equals(assigned.get("type"))){
+            assignStmt.put("type", assigneeType.toString());
+            return null;
+        }
+
+        var assignedTypeName = TypeUtils.getNameType(assigned.get("type"));
+        if(assigneeType.getName().equals(table.getSuper()) && assignedTypeName.equals(table.getClassName())){
+            assignStmt.put("type", assigneeType.toString());
+            return null;
+        }
+
+        if (table.getImports().contains(assigneeType.getName()) && table.getImports().contains(assignedTypeName)) {
+            assignStmt.put("type", assigneeType.toString());
             return null;
         }
 
         // Create error report
         var message = String.format("Type of the assignee must be compatible with the assigned. '%s' cannot be converted to '%s'",
-                assignStmtType, assignStmt.getChild(0).get("type"));
+                assigneeType, assigned.get("type"));
         addReport(Report.newError(
                 Stage.SEMANTIC,
                 assignStmt.getLine(),

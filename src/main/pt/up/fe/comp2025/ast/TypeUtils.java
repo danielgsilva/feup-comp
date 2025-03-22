@@ -41,7 +41,7 @@ public class TypeUtils {
         if (matcher.find()) {
             return matcher.group(1);
         }
-        return null;
+        return "";
     }
 
     public static Type convertType(JmmNode typeNode) {

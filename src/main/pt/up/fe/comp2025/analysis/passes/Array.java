@@ -41,8 +41,8 @@ public class Array extends AnalysisVisitor {
 
     private Void visitArrayExpr(JmmNode arrayExpr, SymbolTable table) {
         if (arrayExpr.getChildren().isEmpty()) return null;
-        var arrayExpTtype = arrayExpr.get("type");
-        var type = TypeUtils.newType(TypeUtils.getNameType(arrayExpTtype));
+        var arrayExpType = arrayExpr.get("type");
+        var type = TypeUtils.newType(TypeUtils.getNameType(arrayExpType));
         for (var elem : arrayExpr.getChildren()) {
             visit(elem, table);
             if (!elem.get("type").equals(type.toString())) {

@@ -34,7 +34,9 @@ public enum Kind {
     ARRAY_ASSIGN_STMT,
     NEW_INT_ARRAY_EXPR,
     NEW_OBJECT_EXPR,
-    METHOD_CALL_EXPR
+    METHOD_CALL_EXPR,
+    IF_STMT,
+    WHILE_STMT
     ;
 
     private final String name;

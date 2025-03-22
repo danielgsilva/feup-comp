@@ -33,7 +33,7 @@ public class AddType extends AnalysisVisitor {
         addVisit(Kind.ASSIGN_STMT, this::visitAssignStmt);
         addVisit(Kind.NEW_INT_ARRAY_EXPR, this::visitNewIntArrayExpr);
         addVisit(Kind.NEW_OBJECT_EXPR, this::visitNewObjectExpr);
-
+        addVisit(Kind.THIS_EXPR, this::visitThisExpr);
     }
 
     private Void visitMethodDecl(JmmNode method, SymbolTable table) {
@@ -154,6 +154,24 @@ public class AddType extends AnalysisVisitor {
     private Void visitNewObjectExpr(JmmNode newObjectExpr, SymbolTable table) {
         var className = newObjectExpr.get("name");
         newObjectExpr.put("type", TypeUtils.newType(className).toString());
+        return null;
+    }
+
+    private Void visitThisExpr(JmmNode thisExpr, SymbolTable table) {
+        var staticMethod = thisExpr.getAncestor(Kind.METHOD_DECL).get().get("isStatic");
+        if (!Boolean.parseBoolean(staticMethod))
+            thisExpr.put("type", table.getClassName());
+
+        // Create error report
+        var message = String.format("'This' expression cannot be used in a static method: '%s'", currentMethod);
+        addReport(Report.newError(
+                Stage.SEMANTIC,
+                thisExpr.getLine(),
+                thisExpr.getColumn(),
+                message,
+                null)
+        );
+
         return null;
     }
 

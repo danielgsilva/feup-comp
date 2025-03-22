@@ -78,7 +78,7 @@ type locals [boolean isArray = false]
     | name=STRING #StringType
     ;
 
-methodDecl locals[boolean isPublic=false]
+methodDecl locals[boolean isPublic=false, boolean isStatic=false]
     : (PUBLIC {$isPublic=true;})?
         returnType=type name=ID
         LPAREN (param (COMMA param)*)? RPAREN
@@ -87,7 +87,7 @@ methodDecl locals[boolean isPublic=false]
             stmt*
             RETURN expr SEMI
         RBRACE #RegularMethodDecl
-    | (PUBLIC {$isPublic=true;})? STATIC VOID name=MAIN
+    | (PUBLIC {$isPublic=true;})? (STATIC {$isStatic=true;}) VOID name=MAIN
         LPAREN STRING LBRACK RBRACK argName=ID RPAREN
         LBRACE
             varDeclaration*

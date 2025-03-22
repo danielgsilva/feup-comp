@@ -36,7 +36,8 @@ public enum Kind {
     NEW_OBJECT_EXPR,
     METHOD_CALL_EXPR,
     IF_STMT,
-    WHILE_STMT
+    WHILE_STMT,
+    THIS_EXPR
     ;
 
     private final String name;

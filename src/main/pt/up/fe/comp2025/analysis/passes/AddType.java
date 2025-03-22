@@ -33,6 +33,7 @@ public class AddType extends AnalysisVisitor {
         addVisit(Kind.ASSIGN_STMT, this::visitAssignStmt);
         addVisit(Kind.NEW_INT_ARRAY_EXPR, this::visitNewIntArrayExpr);
         addVisit(Kind.NEW_OBJECT_EXPR, this::visitNewObjectExpr);
+        addVisit(Kind.METHOD_CALL_EXPR, this::visitMethodCallExpr);
         addVisit(Kind.THIS_EXPR, this::visitThisExpr);
     }
 
@@ -159,8 +160,10 @@ public class AddType extends AnalysisVisitor {
 
     private Void visitThisExpr(JmmNode thisExpr, SymbolTable table) {
         var staticMethod = thisExpr.getAncestor(Kind.METHOD_DECL).get().get("isStatic");
-        if (!Boolean.parseBoolean(staticMethod))
-            thisExpr.put("type", table.getClassName());
+        if (!Boolean.parseBoolean(staticMethod)){
+            thisExpr.put("type", TypeUtils.newType(table.getClassName()).toString());
+            return null;
+        }
 
         // Create error report
         var message = String.format("'This' expression cannot be used in a static method: '%s'", currentMethod);
@@ -171,6 +174,39 @@ public class AddType extends AnalysisVisitor {
                 message,
                 null)
         );
+
+        return null;
+    }
+
+    private Void visitMethodCallExpr(JmmNode methodCallExpr, SymbolTable table) {
+        for(var child: methodCallExpr.getChildren())
+            visit(child, table);
+        var object = methodCallExpr.getChild(0);
+        var objectType = TypeUtils.getNameType(object.get("type"));
+
+        if (objectType.equals(table.getClassName()) && table.getMethods().contains(methodCallExpr.get("name"))){
+                var returnType = table.getReturnType(methodCallExpr.get("name"));
+                methodCallExpr.put("type", returnType.toString());
+                return null;
+        }
+
+        if (table.getImports().contains(objectType) || table.getImports().contains(table.getSuper())) {
+            methodCallExpr.put("type", TypeUtils.newType("imported").toString());
+            return null;
+        }
+
+
+
+        // Create error report
+        var message = String.format("Object of type '%s' has no method named '%s'.", objectType, methodCallExpr.get("name"));
+        addReport(Report.newError(
+                Stage.SEMANTIC,
+                methodCallExpr.getLine(),
+                methodCallExpr.getColumn(),
+                message,
+                null)
+        );
+
 
         return null;
     }

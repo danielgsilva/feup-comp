@@ -48,7 +48,7 @@ public class TypeUtils {
 
         // TODO: When you support new types, this must be updated
         var name = typeNode.get("name");
-        var isArray = Boolean.parseBoolean(typeNode.get("isArray"));
+        var isArray = (Boolean.parseBoolean(typeNode.get("isArray")) || Boolean.parseBoolean(typeNode.get("isVarargs")));
 
         return new Type(name, isArray);
     }

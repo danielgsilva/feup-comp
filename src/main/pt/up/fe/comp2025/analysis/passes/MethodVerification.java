@@ -17,7 +17,87 @@ import java.util.List;
 public class MethodVerification extends AnalysisVisitor {
     @Override
     public void buildVisitor() {
+        addVisit(Kind.METHOD_DECL, this::visitMethodDecl);
         addVisit(Kind.METHOD_CALL_EXPR, this::visitMethodCallExpr);
+    }
+
+    private Void visitMethodDecl(JmmNode methodDecl, SymbolTable table) {
+        // Checks if varargs are used only in the last parameter of a method declaration
+        checkVargars(methodDecl, table);
+
+        var returnStmt = methodDecl.getChildren(Kind.RETURN_STMT);
+        if (returnStmt.isEmpty()) {
+            // main method, return
+            return null;
+        } else if (returnStmt.size() > 1) {
+            // Create error report
+            var message = String.format("Method '%s' with more than one return statement", methodDecl.get("name"));
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    methodDecl.getLine(),
+                    methodDecl.getColumn(),
+                    message,
+                    null)
+            );
+            return null;
+        } else if (returnStmt.getFirst().getIndexOfSelf() == returnStmt.size() - 1) {
+            // Create error report
+            var message = String.format("'Return' statement is not the last statement in method '%s'.", methodDecl.get("name"));
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    methodDecl.getLine(),
+                    methodDecl.getColumn(),
+                    message,
+                    null)
+            );
+            return null;
+        }
+
+        var returnStmtType = returnStmt.getFirst().get("type");
+
+        if (TypeUtils.getNameType(returnStmtType).equals("imported")) {
+            return null;
+        }
+
+        if (!methodDecl.get("type").equals(returnStmtType)) {
+            // Create error report
+            var message = String.format("Return value of type incompatible '%s' with method return type '%s'.",
+                    returnStmtType, methodDecl.get("type"));
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    methodDecl.getLine(),
+                    methodDecl.getColumn(),
+                    message,
+                    null)
+            );
+            return null;
+        }
+
+        return null;
+    }
+
+    private void checkVargars(JmmNode methodDecl, SymbolTable table) {
+        // Get method parameters from symbol table
+        List<Symbol> parameters = table.getParameters(methodDecl.get("name"));
+
+        // Checks if varargs are used in any parameter except the last one in a method declaration
+        for (int i = 0; i < parameters.size() - 1; i++) {
+            var isVararg = (boolean) parameters.get(i).getType().getObject("isVarargs");
+
+            if (isVararg) {
+                // Create error report
+                var message = String.format("Found varargs before the last parameter of the method '%s'.", methodDecl.get("name"));
+                addReport(Report.newError(
+                        Stage.SEMANTIC,
+                        methodDecl.getLine(),
+                        methodDecl.getColumn(),
+                        message,
+                        null)
+                );
+                return;
+            }
+        }
+
     }
 
     private Void visitMethodCallExpr(JmmNode methodCallExpr, SymbolTable table) {
@@ -81,6 +161,7 @@ public class MethodVerification extends AnalysisVisitor {
             }
         }
 
+        // Check type compatibility for last argument
         var isVararg = (boolean) parameters.get(i).getType().getObject("isVarargs");
         if (isVararg) {
             // receive a variable of type int array

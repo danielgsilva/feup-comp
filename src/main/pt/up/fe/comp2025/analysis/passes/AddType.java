@@ -35,10 +35,16 @@ public class AddType extends AnalysisVisitor {
         addVisit(Kind.NEW_OBJECT_EXPR, this::visitNewObjectExpr);
         addVisit(Kind.METHOD_CALL_EXPR, this::visitMethodCallExpr);
         addVisit(Kind.THIS_EXPR, this::visitThisExpr);
+        addVisit(Kind.RETURN_STMT, this::visitReturnStmt);
     }
 
     private Void visitMethodDecl(JmmNode method, SymbolTable table) {
         currentMethod = method.get("name");
+        if (currentMethod.equals("main"))
+            method.put("type", TypeUtils.newVoidType().toString());
+        else
+            method.put("type", table.getReturnType(currentMethod).toString());
+
         return null;
     }
 
@@ -117,13 +123,13 @@ public class AddType extends AnalysisVisitor {
 
         // Check if the type of the assignee is compatible with the assigned
 
-        if (assigneeType.toString().equals(assigned.get("type"))){
+        if (assigneeType.toString().equals(assigned.get("type"))) {
             assignStmt.put("type", assigneeType.toString());
             return null;
         }
 
         var assignedTypeName = TypeUtils.getNameType(assigned.get("type"));
-        if(assigneeType.getName().equals(table.getSuper()) && assignedTypeName.equals(table.getClassName())){
+        if (assigneeType.getName().equals(table.getSuper()) && assignedTypeName.equals(table.getClassName())) {
             assignStmt.put("type", assigneeType.toString());
             return null;
         }
@@ -160,7 +166,7 @@ public class AddType extends AnalysisVisitor {
 
     private Void visitThisExpr(JmmNode thisExpr, SymbolTable table) {
         var staticMethod = thisExpr.getAncestor(Kind.METHOD_DECL).get().get("isStatic");
-        if (!Boolean.parseBoolean(staticMethod)){
+        if (!Boolean.parseBoolean(staticMethod)) {
             thisExpr.put("type", TypeUtils.newType(table.getClassName()).toString());
             return null;
         }
@@ -179,15 +185,15 @@ public class AddType extends AnalysisVisitor {
     }
 
     private Void visitMethodCallExpr(JmmNode methodCallExpr, SymbolTable table) {
-        for(var child: methodCallExpr.getChildren())
+        for (var child : methodCallExpr.getChildren())
             visit(child, table);
         var object = methodCallExpr.getChild(0);
         var objectType = TypeUtils.getNameType(object.get("type"));
 
-        if (objectType.equals(table.getClassName()) && table.getMethods().contains(methodCallExpr.get("name"))){
-                var returnType = table.getReturnType(methodCallExpr.get("name"));
-                methodCallExpr.put("type", returnType.toString());
-                return null;
+        if (objectType.equals(table.getClassName()) && table.getMethods().contains(methodCallExpr.get("name"))) {
+            var returnType = table.getReturnType(methodCallExpr.get("name"));
+            methodCallExpr.put("type", returnType.toString());
+            return null;
         }
 
         if (table.getImports().contains(objectType) || table.getImports().contains(table.getSuper())) {
@@ -209,6 +215,24 @@ public class AddType extends AnalysisVisitor {
         return null;
     }
 
+    private Void visitReturnStmt(JmmNode returnStmt, SymbolTable table) {
+        if (currentMethod.equals("main")) {
+            // Create error report
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    returnStmt.getLine(),
+                    returnStmt.getColumn(),
+                    "'Return' statement cannot be used in main method.",
+                    null)
+            );
+        }
+        var expr = returnStmt.getChild(0);
+        visit(expr, table);
+        if (expr.hasAttribute("type")) {
+            returnStmt.put("type", expr.get("type"));
+        }
+        return null;
+    }
 
 
 }

@@ -80,12 +80,11 @@ type locals [boolean isArray = false, boolean isVarargs=false]
 
 methodDecl locals[boolean isPublic=false, boolean isStatic=false]
     : (PUBLIC {$isPublic=true;})?
-        returnType=type name=ID
+        type name=ID
         LPAREN (param (COMMA param)*)? RPAREN
         LBRACE
             varDeclaration*
             stmt*
-            RETURN expr SEMI
         RBRACE #RegularMethodDecl
     | (PUBLIC {$isPublic=true;})? (STATIC {$isStatic=true;}) VOID name=MAIN
         LPAREN STRING LBRACK RBRACK argName=ID RPAREN
@@ -123,8 +122,7 @@ expr
     | expr op=LT expr #BinaryExpr
     | expr op=AND expr #BinaryExpr
     | value=INTEGER #IntegerLiteral
-    | TRUE #BooleanLiteral
-    | FALSE #BooleanLiteral
+    | value=(TRUE|FALSE) #BooleanLiteral
     | name=ID #VarRefExpr
     | THIS #ThisExpr
     ;

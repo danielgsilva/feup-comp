@@ -47,6 +47,10 @@ public class TypeUtils {
         return new Type(name, false);
     }
 
+    public static Type newVoidType() {
+        return new Type("void", false);
+    }
+
     public static String getNameType(String type) {
         // "Type[name=int, isArray=false]"
         Pattern pattern = Pattern.compile("name=([^,\\]]+)");

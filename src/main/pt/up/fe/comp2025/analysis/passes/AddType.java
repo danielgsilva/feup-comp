@@ -195,8 +195,6 @@ public class AddType extends AnalysisVisitor {
             return null;
         }
 
-
-
         // Create error report
         var message = String.format("Object of type '%s' has no method named '%s'.", objectType, methodCallExpr.get("name"));
         addReport(Report.newError(

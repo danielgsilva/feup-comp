@@ -4,6 +4,7 @@ import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.analysis.table.Type;
 import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp2025.symboltable.JmmSymbolTable;
+
 import java.util.regex.*;
 
 /**
@@ -29,12 +30,24 @@ public class TypeUtils {
     public static Type newIntType() {
         return new Type("int", false);
     }
-    public static Type newArrayIntType() { return new Type("int", true);}
-    public static Type newArrayType(String name) { return new Type(name, true);}
-    public static Type newBooleanType() { return new Type("boolean", false); }
-    public static Type newType(String name) { return new Type(name, false); }
 
-    public static String getNameType(String type){
+    public static Type newArrayIntType() {
+        return new Type("int", true);
+    }
+
+    public static Type newArrayType(String name) {
+        return new Type(name, true);
+    }
+
+    public static Type newBooleanType() {
+        return new Type("boolean", false);
+    }
+
+    public static Type newType(String name) {
+        return new Type(name, false);
+    }
+
+    public static String getNameType(String type) {
         // "Type[name=int, isArray=false]"
         Pattern pattern = Pattern.compile("name=([^,\\]]+)");
         Matcher matcher = pattern.matcher(type);
@@ -49,8 +62,12 @@ public class TypeUtils {
         // TODO: When you support new types, this must be updated
         var name = typeNode.get("name");
         var isArray = (Boolean.parseBoolean(typeNode.get("isArray")) || Boolean.parseBoolean(typeNode.get("isVarargs")));
-
-        return new Type(name, isArray);
+        Type type = new Type(name, isArray);
+        if (Boolean.parseBoolean(typeNode.get("isVarargs")))
+            type.putObject("isVarargs", true);
+        else
+            type.putObject("isVarargs", false);
+        return type;
     }
 
 
@@ -80,8 +97,7 @@ public class TypeUtils {
         return switch (operator) {
             case MULT, DIV, PLUS, MINUS, LT -> newIntType();
             case NOT, AND -> newBooleanType();
-            default ->
-                    throw new RuntimeException("Unknown operator " + operator);
+            default -> throw new RuntimeException("Unknown operator " + operator);
         };
     }
 
@@ -98,7 +114,7 @@ public class TypeUtils {
         }
 
         // Check if the variable is a parameter
-        for (var param: table.getParameters(method)) {
+        for (var param : table.getParameters(method)) {
             if (param.getName().equals(varName))
                 return param.getType();
         }

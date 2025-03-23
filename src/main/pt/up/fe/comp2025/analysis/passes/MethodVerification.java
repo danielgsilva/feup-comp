@@ -26,10 +26,25 @@ public class MethodVerification extends AnalysisVisitor {
         checkVargars(methodDecl, table);
 
         var returnStmt = methodDecl.getChildren(Kind.RETURN_STMT);
-        if (returnStmt.isEmpty()) {
-            // main method, return
+
+        if (returnStmt.isEmpty() && methodDecl.get("name").equals("main")){
             return null;
-        } else if (returnStmt.size() > 1) {
+        }
+
+        if (returnStmt.isEmpty() && !methodDecl.get("name").equals("main")) {
+            // Create error report
+            var message = String.format("Method '%s' without return statement", methodDecl.get("name"));
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    methodDecl.getLine(),
+                    methodDecl.getColumn(),
+                    message,
+                    null)
+            );
+            return null;
+        }
+
+        if (returnStmt.size() > 1) {
             // Create error report
             var message = String.format("Method '%s' with more than one return statement", methodDecl.get("name"));
             addReport(Report.newError(
@@ -40,7 +55,9 @@ public class MethodVerification extends AnalysisVisitor {
                     null)
             );
             return null;
-        } else if (returnStmt.getFirst().getIndexOfSelf() == returnStmt.size() - 1) {
+        }
+
+        if (returnStmt.getFirst().getIndexOfSelf() == returnStmt.size() - 1) {
             // Create error report
             var message = String.format("'Return' statement is not the last statement in method '%s'.", methodDecl.get("name"));
             addReport(Report.newError(

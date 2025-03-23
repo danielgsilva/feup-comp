@@ -133,7 +133,18 @@ public class JmmSymbolTableBuilder {
                 }
 
                 var localType = TypeUtils.convertType(local.getChild(0));
-                locals.add(new Symbol(localType, localName));
+                var isVararg = (boolean) localType.getObject("isVarargs");
+                if (isVararg) {
+                    // Create report
+                    reports.add(Report.newError(
+                            Stage.SEMANTIC,
+                            local.getLine(),
+                            local.getColumn(),
+                            "Found varargs outside of method parameters",
+                            null)
+                    );
+                } else
+                    locals.add(new Symbol(localType, localName));
             }
 
             map.put(name, locals);
@@ -187,7 +198,18 @@ public class JmmSymbolTableBuilder {
 
             var typeNode = field.getChild(0);
             var fieldType = TypeUtils.convertType(typeNode);
-            fields.add(new Symbol(fieldType, name));
+            var isVararg = (boolean) fieldType.getObject("isVarargs");
+            if (isVararg) {
+                // Create report
+                reports.add(Report.newError(
+                        Stage.SEMANTIC,
+                        field.getLine(),
+                        field.getColumn(),
+                        "Found varargs outside of method parameters",
+                        null)
+                );
+            } else
+                fields.add(new Symbol(fieldType, name));
         }
 
         return fields;

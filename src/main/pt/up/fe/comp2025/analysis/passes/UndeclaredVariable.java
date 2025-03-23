@@ -21,6 +21,7 @@ public class UndeclaredVariable extends AnalysisVisitor {
     public void buildVisitor() {
         addVisit(Kind.METHOD_DECL, this::visitMethodDecl);
         addVisit(Kind.VAR_REF_EXPR, this::visitVarRefExpr);
+        addVisit(Kind.ASSIGN_STMT, this::visitAssignStmt);
     }
 
     private Void visitMethodDecl(JmmNode method, SymbolTable table) {
@@ -50,6 +51,17 @@ public class UndeclaredVariable extends AnalysisVisitor {
         // Var is a field, return
         if (table.getFields().stream()
                 .anyMatch(field -> field.getName().equals(varRefName))) {
+            if (currentMethod.equals("main")) {
+                // Create error report
+                var message = String.format("Found field access '%s' inside a static method.", varRefName);
+                addReport(Report.newError(
+                        Stage.SEMANTIC,
+                        varRefExpr.getLine(),
+                        varRefExpr.getColumn(),
+                        message,
+                        null)
+                );
+            }
             return null;
         }
 
@@ -63,6 +75,30 @@ public class UndeclaredVariable extends AnalysisVisitor {
                 message,
                 null)
         );
+
+        return null;
+    }
+
+    private Void visitAssignStmt(JmmNode assignStmt, SymbolTable table) {
+        SpecsCheck.checkNotNull(currentMethod, () -> "Expected current method to be set");
+
+        var varName = assignStmt.get("name");
+
+        if (table.getFields().stream()
+                .anyMatch(field -> field.getName().equals(varName))) {
+            if (currentMethod.equals("main")) {
+                // Create error report
+                var message = String.format("Found field access '%s' inside a static method.", varName);
+                addReport(Report.newError(
+                        Stage.SEMANTIC,
+                        assignStmt.getLine(),
+                        assignStmt.getColumn(),
+                        message,
+                        null)
+                );
+            }
+            return null;
+        }
 
         return null;
     }

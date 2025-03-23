@@ -72,8 +72,10 @@ public class AddType extends AnalysisVisitor {
             return null;
         }
 
+        varRefExpr.put("type", TypeUtils.newType("invalid").toString());
+
         // Create error report
-        var message = String.format("Variable '%s' not found in method '%s'", varRefExpr.get("name"), currentMethod);
+        var message = String.format("Variable '%s' not found.", varRefExpr.get("name"));
         addReport(Report.newError(
                 Stage.SEMANTIC,
                 varRefExpr.getLine(),
@@ -93,8 +95,9 @@ public class AddType extends AnalysisVisitor {
             return null;
         }
 
+        arrayAccessExpr.put("type", TypeUtils.newType("invalid").toString());
         // Create error report
-        var message = String.format("Array access done over an array expected, got '%s' instead", arrayId.get("type"));
+        var message = String.format("Array access done over an int array expected, got '%s' instead", arrayId.get("type"));
         addReport(Report.newError(
                 Stage.SEMANTIC,
                 arrayAccessExpr.getLine(),
@@ -117,18 +120,44 @@ public class AddType extends AnalysisVisitor {
 
     private Void visitAssignStmt(JmmNode assignStmt, SymbolTable table) {
         // assignee = assigned
+
         Type assigneeType = types.getExprType(assignStmt);
+        if (assigneeType == null) {
+            assignStmt.put("type", TypeUtils.newType("invalid").toString());
+
+            // Create error report
+            var message = String.format("Variable '%s' does not exist.", assignStmt.get("name"));
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    assignStmt.getLine(),
+                    assignStmt.getColumn(),
+                    message,
+                    null)
+            );
+            return null;
+        }
+
         var assigned = assignStmt.getChild(0);
         visit(assigned, table);
 
         // Check if the type of the assignee is compatible with the assigned
+        var assignedTypeName = TypeUtils.getNameType(assigned.get("type"));
+
+        if (assignedTypeName.equals("invalid")){
+            assignStmt.put("type", TypeUtils.newType("invalid").toString());
+            return null;
+        }
+
+        if (assignedTypeName.equals("imported")){
+            assignStmt.put("type", assigneeType.toString());
+            return null;
+        }
 
         if (assigneeType.toString().equals(assigned.get("type"))) {
             assignStmt.put("type", assigneeType.toString());
             return null;
         }
 
-        var assignedTypeName = TypeUtils.getNameType(assigned.get("type"));
         if (assigneeType.getName().equals(table.getSuper()) && assignedTypeName.equals(table.getClassName())) {
             assignStmt.put("type", assigneeType.toString());
             return null;
@@ -171,6 +200,7 @@ public class AddType extends AnalysisVisitor {
             return null;
         }
 
+        thisExpr.put("type", TypeUtils.newType("invalid").toString());
         // Create error report
         var message = String.format("'This' expression cannot be used in a static method: '%s'", currentMethod);
         addReport(Report.newError(

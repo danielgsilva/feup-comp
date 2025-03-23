@@ -1,7 +1,7 @@
 class VarDeclaredClassField {
 
 
-    public boolean foo() {
+    public int foo() {
         int[] x;
         int[] y;
         int[] z;
@@ -9,5 +9,7 @@ class VarDeclaredClassField {
         x = [1, 2, 3];
         y = [1, 2, 3];
         z = x + y;
+
+        return 1;
     }
 }

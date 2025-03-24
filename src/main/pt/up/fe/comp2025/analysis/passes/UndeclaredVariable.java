@@ -6,6 +6,7 @@ import pt.up.fe.comp.jmm.report.Report;
 import pt.up.fe.comp.jmm.report.Stage;
 import pt.up.fe.comp2025.analysis.AnalysisVisitor;
 import pt.up.fe.comp2025.ast.Kind;
+import pt.up.fe.comp2025.ast.TypeUtils;
 import pt.up.fe.specs.util.SpecsCheck;
 
 /**
@@ -63,6 +64,13 @@ public class UndeclaredVariable extends AnalysisVisitor {
                 );
             }
             return null;
+        }
+
+        // Check if the variable is an import, return
+        for (var importName : table.getImports()) {
+            if (importName.equals(varRefName) || importName.endsWith("." + varRefName)) {
+                return null;
+            }
         }
 
 

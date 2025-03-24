@@ -142,6 +142,11 @@ public class MethodVerification extends AnalysisVisitor {
         // Get arguments from method call node
         List<JmmNode> argumentNodes = getArgumentNodes(methodCallExpr);
 
+        // Method without arguments, nothing to check, return
+        if (parameters.isEmpty() && argumentNodes.isEmpty()) {
+            return;
+        }
+
         // Check type compatibility for each argument except the last one
         int i;
         for (i = 0; i < parameters.size() - 1; i++) {

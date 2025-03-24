@@ -99,8 +99,8 @@ public class TypeUtils {
     private static Type getBinaryExprType(JmmNode binaryExpr) {
         var operator = binaryExpr.get("op");
         return switch (operator) {
-            case MULT, DIV, PLUS, MINUS, LT -> newIntType();
-            case NOT, AND -> newBooleanType();
+            case MULT, DIV, PLUS, MINUS -> newIntType();
+            case NOT, AND, LT -> newBooleanType();
             default -> throw new RuntimeException("Unknown operator " + operator);
         };
     }
@@ -127,6 +127,13 @@ public class TypeUtils {
         for (var field : table.getFields()) {
             if (field.getName().equals(varName))
                 return field.getType();
+        }
+
+        // Check if the variable is an import
+        for (var importName : table.getImports()) {
+            if (importName.equals(varName) || importName.endsWith("." + varName)) {
+                return TypeUtils.newType("imported");
+            }
         }
 
         return null;

@@ -37,7 +37,10 @@ public enum Kind {
     METHOD_CALL_EXPR,
     IF_STMT,
     WHILE_STMT,
-    THIS_EXPR
+    THIS_EXPR,
+    LENGTH_EXPR,
+    NOT_EXPR,
+    PAREN_EXPR,
     ;
 
     private final String name;

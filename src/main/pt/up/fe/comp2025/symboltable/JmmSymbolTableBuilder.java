@@ -66,7 +66,20 @@ public class JmmSymbolTableBuilder {
             if (method.getKind().equals("RegularMethodDecl")) {
                 var typeNode = method.getChild(0);
                 var returnType = TypeUtils.convertType(typeNode);
-                map.put(name, returnType);
+
+                var isVararg = (boolean) returnType.getObject("isVarargs");
+                if (isVararg) {
+                    // Create report
+                    reports.add(Report.newError(
+                            Stage.SEMANTIC,
+                            typeNode.getLine(),
+                            typeNode.getColumn(),
+                            "Found varargs outside of method parameters",
+                            null)
+                    );
+                } else
+                    map.put(name, returnType);
+
             } else if (method.getKind().equals("MainMethodDecl")) {
                 map.put(name, new Type("void", false));
             }
@@ -221,7 +234,7 @@ public class JmmSymbolTableBuilder {
 
         for (var importDecl : root.getChildren(IMPORT_DECL)) {
             var parts = importDecl.get("path");
-            String importPath = String.join(".", parts.substring(1, parts.length() - 1).split(",")).trim();
+            String importPath = String.join(".", parts.substring(1, parts.length() - 1).split(",")).replaceAll("\\s", "");
             String className = importPath.substring(importPath.lastIndexOf('.') + 1);
 
             if (!importClassNames.add(className)) {

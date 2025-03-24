@@ -1,4 +1,4 @@
-import x;
+import A.x;
 
 class VarDeclaredClassField {
 

@@ -7,6 +7,7 @@ import pt.up.fe.comp.jmm.report.Report;
 import pt.up.fe.comp.jmm.report.Stage;
 import pt.up.fe.comp2025.analysis.AnalysisVisitor;
 import pt.up.fe.comp2025.ast.Kind;
+import pt.up.fe.comp2025.ast.TypeUtils;
 import pt.up.fe.specs.util.SpecsCheck;
 
 
@@ -23,6 +24,12 @@ public class OperatorType extends AnalysisVisitor {
         var typeRightOperand = binaryExpr.getChild(1).get("type");
 
         if (type.equals(typeLeftOperand) && type.equals(typeRightOperand)) return null;
+
+        if (binaryExpr.get("op").equals("<") &&
+                typeLeftOperand.equals(TypeUtils.newIntType().toString()) &&
+                typeRightOperand.equals(TypeUtils.newIntType().toString())) {
+            return null;
+        }
 
         // Create error report
         var message = String.format("Expected both operands of type '%s', got '%s' and '%s' instead", type, typeLeftOperand, typeRightOperand);

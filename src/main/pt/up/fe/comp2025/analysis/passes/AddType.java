@@ -34,8 +34,12 @@ public class AddType extends AnalysisVisitor {
         addVisit(Kind.NEW_INT_ARRAY_EXPR, this::visitNewIntArrayExpr);
         addVisit(Kind.NEW_OBJECT_EXPR, this::visitNewObjectExpr);
         addVisit(Kind.METHOD_CALL_EXPR, this::visitMethodCallExpr);
+        // TODO
+        //addVisit(Kind.LENGTH_EXPR, this::visitLengthExpr);
+        addVisit(Kind.NOT_EXPR, this::visitNotExpr);
         addVisit(Kind.THIS_EXPR, this::visitThisExpr);
         addVisit(Kind.RETURN_STMT, this::visitReturnStmt);
+        addVisit(Kind.PAREN_EXPR, this::visitParenExpr);
     }
 
     private Void visitMethodDecl(JmmNode method, SymbolTable table) {
@@ -54,6 +58,14 @@ public class AddType extends AnalysisVisitor {
         return null;
     }
 
+    private Void visitParenExpr(JmmNode parenExpr, SymbolTable table) {
+        var expr = parenExpr.getChild(0);
+        if (!expr.hasAttribute("type"))
+            visit(expr, table);
+        parenExpr.put("type", expr.get("type"));
+        return null;
+    }
+
     private Void visitIntegerLiteral(JmmNode integerLiteral, SymbolTable table) {
         integerLiteral.put("type", TypeUtils.newIntType().toString());
         return null;
@@ -61,6 +73,11 @@ public class AddType extends AnalysisVisitor {
 
     private Void visitBooleanLiteral(JmmNode booleanLiteral, SymbolTable table) {
         booleanLiteral.put("type", TypeUtils.newBooleanType().toString());
+        return null;
+    }
+
+    private Void visitNotExpr(JmmNode notExpr, SymbolTable table) {
+        notExpr.put("type", TypeUtils.newBooleanType().toString());
         return null;
     }
 
@@ -143,12 +160,12 @@ public class AddType extends AnalysisVisitor {
         // Check if the type of the assignee is compatible with the assigned
         var assignedTypeName = TypeUtils.getNameType(assigned.get("type"));
 
-        if (assignedTypeName.equals("invalid")){
+        if (assignedTypeName.equals("invalid")) {
             assignStmt.put("type", TypeUtils.newType("invalid").toString());
             return null;
         }
 
-        if (assignedTypeName.equals("imported")){
+        if (assignedTypeName.equals("imported")) {
             assignStmt.put("type", assigneeType.toString());
             return null;
         }
@@ -226,7 +243,8 @@ public class AddType extends AnalysisVisitor {
             return null;
         }
 
-        if (table.getImports().contains(objectType) || table.getImports().contains(table.getSuper())) {
+        if (objectType.equals("imported")
+                || table.getImports().contains(objectType) || table.getImports().contains(table.getSuper())) {
             methodCallExpr.put("type", TypeUtils.newType("imported").toString());
             return null;
         }
@@ -261,6 +279,11 @@ public class AddType extends AnalysisVisitor {
         if (expr.hasAttribute("type")) {
             returnStmt.put("type", expr.get("type"));
         }
+        return null;
+    }
+
+    private Void visitLengthExpr(JmmNode returnStmt, SymbolTable table) {
+        // TODO
         return null;
     }
 

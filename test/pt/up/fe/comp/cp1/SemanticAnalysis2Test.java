@@ -206,7 +206,7 @@ public class SemanticAnalysis2Test {
 
     @Test
     public void ArrayInitLengthOk(){
-        var result = TestUtils.analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis2/ArrayInitLengthOk.jmm"));
+        var result = TestUtils.analyse(SpecsIo.getResource("pt/up/fe/comp/cp1/semanticanalysis2/arrayInitLengthOk.jmm"));
         TestUtils.noErrors(result);
     }
 

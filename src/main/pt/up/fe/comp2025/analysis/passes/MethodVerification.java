@@ -147,15 +147,27 @@ public class MethodVerification extends AnalysisVisitor {
             return;
         }
 
+        if (argumentNodes.isEmpty()) {
+            // Create error report
+            var message = String.format("Expected method to receive '%d' arguments, but got '0'", parameters.size());
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    methodCallExpr.getLine(),
+                    methodCallExpr.getColumn(),
+                    message,
+                    null)
+            );
+            return;
+        }
+
         // Check type compatibility for each argument except the last one
         int i;
+        int nArgs = argumentNodes.size();
         for (i = 0; i < parameters.size() - 1; i++) {
-            var isVararg = (boolean) parameters.get(i).getType().getObject("isVarargs");
-
-            // Varargs can only be used in the last parameter
-            if (isVararg) {
+            if (nArgs == 0) {
                 // Create error report
-                var message = String.format("Method '%s': Varargs can only be used in the last parameter.", methodName);
+                var message = String.format("Expected method to receive '%d' arguments, but got '%d'",
+                        parameters.size(), argumentNodes.size());
                 addReport(Report.newError(
                         Stage.SEMANTIC,
                         methodCallExpr.getLine(),
@@ -163,7 +175,7 @@ public class MethodVerification extends AnalysisVisitor {
                         message,
                         null)
                 );
-
+                return;
             }
 
             JmmNode argNode = argumentNodes.get(i);
@@ -180,7 +192,23 @@ public class MethodVerification extends AnalysisVisitor {
                         message,
                         null)
                 );
+                return;
             }
+            nArgs--;
+        }
+
+        if (nArgs == 0) {
+            // Create error report
+            var message = String.format("Expected method to receive '%d' arguments, but got '%d'",
+                    parameters.size(), argumentNodes.size());
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    methodCallExpr.getLine(),
+                    methodCallExpr.getColumn(),
+                    message,
+                    null)
+            );
+            return;
         }
 
         // Check type compatibility for last argument
@@ -203,6 +231,7 @@ public class MethodVerification extends AnalysisVisitor {
                             message,
                             null)
                     );
+                    return;
                 }
             }
         } else {
@@ -219,6 +248,7 @@ public class MethodVerification extends AnalysisVisitor {
                         message,
                         null)
                 );
+                return;
             }
         }
     }

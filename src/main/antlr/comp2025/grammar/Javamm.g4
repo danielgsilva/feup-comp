@@ -74,7 +74,6 @@ type locals [boolean isArray = false, boolean isVarargs=false]
     | name=INT (ELLIPSIS {$isVarargs = true;})? #IntType
     | name=BOOLEAN #BooleanType
     | name=ID #ClassType
-    | name=STRING #StringType
     ;
 
 methodDecl locals[boolean isPublic=false, boolean isStatic=false]

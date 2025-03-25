@@ -34,8 +34,7 @@ public class AddType extends AnalysisVisitor {
         addVisit(Kind.NEW_INT_ARRAY_EXPR, this::visitNewIntArrayExpr);
         addVisit(Kind.NEW_OBJECT_EXPR, this::visitNewObjectExpr);
         addVisit(Kind.METHOD_CALL_EXPR, this::visitMethodCallExpr);
-        // TODO
-        //addVisit(Kind.LENGTH_EXPR, this::visitLengthExpr);
+        addVisit(Kind.LENGTH_EXPR, this::visitLengthExpr);
         addVisit(Kind.NOT_EXPR, this::visitNotExpr);
         addVisit(Kind.THIS_EXPR, this::visitThisExpr);
         addVisit(Kind.RETURN_STMT, this::visitReturnStmt);
@@ -282,8 +281,21 @@ public class AddType extends AnalysisVisitor {
         return null;
     }
 
-    private Void visitLengthExpr(JmmNode returnStmt, SymbolTable table) {
-        // TODO
+    private Void visitLengthExpr(JmmNode lengthExpr, SymbolTable table) {
+        if (!lengthExpr.get("name").equals("length")) {
+            lengthExpr.put("type", TypeUtils.newType("invalid").toString());
+            // Create error report
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    lengthExpr.getLine(),
+                    lengthExpr.getColumn(),
+                    "Access to properties that are not 'length'.",
+                    null)
+            );
+            return null;
+        }
+        lengthExpr.put("type", TypeUtils.newIntType().toString());
+
         return null;
     }
 

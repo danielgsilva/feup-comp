@@ -1,5 +1,0 @@
-class varargsTooManyInvalid{
-    public int foo(){
-        return true;
-    }
-}

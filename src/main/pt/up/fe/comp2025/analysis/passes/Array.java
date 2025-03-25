@@ -18,6 +18,7 @@ public class Array extends AnalysisVisitor {
     public void buildVisitor() {
         addVisit(Kind.ARRAY_ACCESS_EXPR, this::visitArrayAccessExpr);
         addVisit(Kind.ARRAY_EXPR, this::visitArrayExpr);
+        addVisit(Kind.LENGTH_EXPR, this::visitLengthExpr);
     }
 
     private Void visitArrayAccessExpr(JmmNode arrayAccessExpr, SymbolTable table) {
@@ -57,6 +58,23 @@ public class Array extends AnalysisVisitor {
                 );
             }
         }
+        return null;
+    }
+
+    private Void visitLengthExpr(JmmNode lengthExpr, SymbolTable table) {
+        var expr = lengthExpr.getChild(0);
+        if (!expr.get("type").equals(TypeUtils.newArrayIntType().toString())) {
+            // Create error report
+            var message = String.format("Expected an array but found '%s' instead.", expr.get("type"));
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    lengthExpr.getLine(),
+                    lengthExpr.getColumn(),
+                    message,
+                    null)
+            );
+        }
+
         return null;
     }
 

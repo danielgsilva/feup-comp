@@ -22,7 +22,6 @@ NEW : 'new' ;
 THIS : 'this' ;
 TRUE : 'true' ;
 FALSE : 'false' ;
-LENGTH : 'length' ;
 
 DOT : '.' ;
 SEMI : ';' ;
@@ -111,7 +110,7 @@ stmt
 expr
     : LPAREN expr RPAREN #ParenExpr
     | expr LBRACK expr RBRACK #ArrayAccessExpr
-    | expr DOT LENGTH #LengthExpr
+    | expr DOT name=ID #LengthExpr
     | expr DOT name=ID LPAREN (expr (COMMA expr)*)? RPAREN #MethodCallExpr
     | NEW INT LBRACK expr RBRACK #NewIntArrayExpr
     | NEW name=ID LPAREN RPAREN #NewObjectExpr

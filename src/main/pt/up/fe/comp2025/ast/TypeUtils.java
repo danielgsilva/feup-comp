@@ -87,7 +87,7 @@ public class TypeUtils {
         switch (Kind.fromString(expr.getKind())) {
             case BINARY_EXPR:
                 return getBinaryExprType(expr);
-            case ASSIGN_STMT:
+            case ASSIGN_STMT, ARRAY_ASSIGN_STMT:
                 return getAssignStmtType(expr);
             case VAR_REF_EXPR:
                 return getVarRefExprType(expr);

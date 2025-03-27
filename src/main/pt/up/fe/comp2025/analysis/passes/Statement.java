@@ -15,6 +15,7 @@ public class Statement extends AnalysisVisitor {
     public void buildVisitor() {
         addVisit(Kind.IF_STMT, this::visitIfStmt);
         addVisit(Kind.WHILE_STMT, this::visitWhileStmt);
+        addVisit(Kind.ARRAY_ASSIGN_STMT, this::visitArrayAssignStmt);
     }
 
     private Void visitIfStmt(JmmNode ifStmt, SymbolTable table) {
@@ -54,6 +55,40 @@ public class Statement extends AnalysisVisitor {
 
         return null;
     }
+
+    private Void visitArrayAssignStmt(JmmNode arrayAssignStmt, SymbolTable table) {
+        // assignee[index] = assigned
+        var indexType = arrayAssignStmt.getChild(0).get("type");
+        if (!indexType.equals(TypeUtils.newIntType().toString())) {
+            // Create error report
+            var message = String.format("Index in not an int, instead is an '%s'", indexType);
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    arrayAssignStmt.getLine(),
+                    arrayAssignStmt.getColumn(),
+                    message,
+                    null)
+            );
+            return null;
+        }
+
+        var assignedType = arrayAssignStmt.getChild(1).get("type");
+        if (!assignedType.equals(TypeUtils.newIntType().toString())) {
+            // Create error report
+            var message = String.format("Value in not an int, instead is '%s'", assignedType);
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    arrayAssignStmt.getLine(),
+                    arrayAssignStmt.getColumn(),
+                    message,
+                    null)
+            );
+            return null;
+        }
+
+        return null;
+    }
+
 
 
 }

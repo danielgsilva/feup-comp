@@ -31,6 +31,7 @@ public class AddType extends AnalysisVisitor {
         addVisit(Kind.ARRAY_ACCESS_EXPR, this::visitArrayAccessExpr);
         addVisit(Kind.ARRAY_EXPR, this::visitArrayExpr);
         addVisit(Kind.ASSIGN_STMT, this::visitAssignStmt);
+        addVisit(Kind.ARRAY_ASSIGN_STMT, this::visitArrayAssignStmt);
         addVisit(Kind.NEW_INT_ARRAY_EXPR, this::visitNewIntArrayExpr);
         addVisit(Kind.NEW_OBJECT_EXPR, this::visitNewObjectExpr);
         addVisit(Kind.METHOD_CALL_EXPR, this::visitMethodCallExpr);
@@ -194,6 +195,25 @@ public class AddType extends AnalysisVisitor {
                 message,
                 null)
         );
+
+        return null;
+    }
+
+    private Void visitArrayAssignStmt(JmmNode arrayAssignStmt, SymbolTable table) {
+        var assigneeType = types.getExprType(arrayAssignStmt).toString();
+        if (!assigneeType.equals(TypeUtils.newArrayIntType().toString())) {
+            // Create error report
+            var message = String.format("Expected an array but found '%s' instead.", assigneeType);
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    arrayAssignStmt.getLine(),
+                    arrayAssignStmt.getColumn(),
+                    message,
+                    null)
+            );
+        }
+
+        arrayAssignStmt.put("type", TypeUtils.newIntType().toString());
 
         return null;
     }

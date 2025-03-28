@@ -17,8 +17,25 @@ import java.util.List;
 public class MethodVerification extends AnalysisVisitor {
     @Override
     public void buildVisitor() {
+        addVisit(Kind.MAIN_METHOD_DECL, this::visitMainMethodDecl);
         addVisit(Kind.METHOD_DECL, this::visitMethodDecl);
         addVisit(Kind.METHOD_CALL_EXPR, this::visitMethodCallExpr);
+    }
+
+    private Void visitMainMethodDecl(JmmNode mainMethodDecl, SymbolTable table) {
+        var paramTypeName = mainMethodDecl.get("string");
+        var methodName = mainMethodDecl.get("name");
+        if(!paramTypeName.equals("String") || !methodName.equals("main")) {
+            // Create error report
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    mainMethodDecl.getLine(),
+                    mainMethodDecl.getColumn(),
+                    "Static methods that are not the 'main' method.",
+                    null)
+            );
+        }
+        return null;
     }
 
     private Void visitMethodDecl(JmmNode methodDecl, SymbolTable table) {

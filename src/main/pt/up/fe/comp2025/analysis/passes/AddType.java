@@ -59,6 +59,12 @@ public class AddType extends AnalysisVisitor {
         if (varDecl.getChild(0).getKind().equals("ClassType")) {
             var varTypeName = TypeUtils.getNameType(varType.toString());
 
+            // Special case for String
+            if (varTypeName.equals("String")) {
+                varDecl.put("type", varType.toString());
+                return null;
+            }
+
             // Check if the variable is a class
             if (varTypeName.equals(table.getClassName())) {
                 varDecl.put("type", varType.toString());

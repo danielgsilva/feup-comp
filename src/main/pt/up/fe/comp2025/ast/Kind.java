@@ -19,6 +19,7 @@ public enum Kind {
     VAR_DECL,
     TYPE,
     METHOD_DECL,
+    MAIN_METHOD_DECL,
     PARAM,
     STMT,
     ASSIGN_STMT,

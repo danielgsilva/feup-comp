@@ -13,8 +13,6 @@ EXTENDS : 'extends' ;
 BOOLEAN : 'boolean' ;
 STATIC : 'static' ;
 VOID : 'void' ;
-MAIN : 'main' ;
-STRING : 'String' ;
 IF : 'if' ;
 ELSE : 'else' ;
 WHILE : 'while' ;
@@ -84,8 +82,8 @@ methodDecl locals[boolean isPublic=false, boolean isStatic=false]
             varDeclaration*
             stmt*
         RBRACE #RegularMethodDecl
-    | (PUBLIC {$isPublic=true;})? (STATIC {$isStatic=true;}) VOID name=MAIN
-        LPAREN STRING LBRACK RBRACK argName=ID RPAREN
+    | (PUBLIC {$isPublic=true;})? (STATIC {$isStatic=true;}) VOID name=ID
+        LPAREN string=ID LBRACK RBRACK argName=ID RPAREN
         LBRACE
             varDeclaration*
             stmt*

@@ -136,10 +136,12 @@ public class MethodVerification extends AnalysisVisitor {
 
     private Void visitMethodCallExpr(JmmNode methodCallExpr, SymbolTable table) {
         if (TypeUtils.getNameType(methodCallExpr.get("type")).equals("imported")) return null;
-        String methodName = methodCallExpr.get("name");
-        if (table.getMethods().contains(methodName)) {
-            checkArgumentTypes(methodCallExpr, methodName, table);
-            return null;
+        if (table.getSuper() == null) {
+            String methodName = methodCallExpr.get("name");
+            if (table.getMethods().contains(methodName)) {
+                checkArgumentTypes(methodCallExpr, methodName, table);
+                return null;
+            }
         }
 
         return null;
@@ -256,7 +258,7 @@ public class MethodVerification extends AnalysisVisitor {
             if (!argumentNodes.get(i).get("type").equals(lastParamType.toString())) {
                 // Create error report
                 var message = String.format("Incompatible argument type. " +
-                                "Method '%s': Last parameter '%d' expects '%s' but received '%s'.",
+                                "Method '%s': Parameter '%d' expects '%s' but received '%s'.",
                         methodName, i, lastParamType, argumentNodes.get(i).get("type"));
                 addReport(Report.newError(
                         Stage.SEMANTIC,

@@ -47,6 +47,31 @@ public class JmmSymbolTableBuilder {
 
         String className = classDecl.get("name");
         String superClassName = classDecl.getOptional("superClass").orElse(null);
+        if (superClassName != null && superClassName.equals(className)) {
+            // Create error report
+            var message = String.format("Class '%s' cannot extend itself.", className);
+            reports.add(Report.newError(
+                    Stage.SEMANTIC,
+                    classDecl.getLine(),
+                    classDecl.getColumn(),
+                    message,
+                    null)
+            );
+        }
+
+        if (superClassName != null && !imports.contains(superClassName) ) {
+            if (imports.stream().noneMatch(s -> s.endsWith("." + superClassName))){
+                // Create error report
+                var message = String.format("Class '%s' extends class '%s' that was not imported.", className, superClassName);
+                reports.add(Report.newError(
+                        Stage.SEMANTIC,
+                        classDecl.getLine(),
+                        classDecl.getColumn(),
+                        message,
+                        null)
+                );
+            }
+        }
 
         var methods = buildMethods(classDecl);
         var returnTypes = buildReturnTypes(classDecl);

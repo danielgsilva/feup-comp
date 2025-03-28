@@ -153,11 +153,14 @@ public class AddType extends AnalysisVisitor {
         if (arrayId.get("type").equals(TypeUtils.newArrayIntType().toString())) {
             arrayAccessExpr.put("type", TypeUtils.newIntType().toString());
             return null;
+        } else if (arrayId.get("type").equals(TypeUtils.newArrayType("String").toString())) {
+            arrayAccessExpr.put("type", TypeUtils.newType("String").toString());
+            return null;
         }
 
         arrayAccessExpr.put("type", TypeUtils.newType("invalid").toString());
         // Create error report
-        var message = String.format("Array access done over an int array expected, got '%s' instead", arrayId.get("type"));
+        var message = String.format("Array access done over an int/String array expected, got '%s' instead", arrayId.get("type"));
         addReport(Report.newError(
                 Stage.SEMANTIC,
                 arrayAccessExpr.getLine(),
@@ -203,16 +206,6 @@ public class AddType extends AnalysisVisitor {
         // Check if the type of the assignee is compatible with the assigned
         var assignedTypeName = TypeUtils.getNameType(assigned.get("type"));
 
-        if (assignedTypeName.equals("invalid")) {
-            assignStmt.put("type", TypeUtils.newType("invalid").toString());
-            return null;
-        }
-
-        if (assignedTypeName.equals("imported")) {
-            assignStmt.put("type", assigneeType.toString());
-            return null;
-        }
-
         if (assigneeType.toString().equals(assigned.get("type"))) {
             assignStmt.put("type", assigneeType.toString());
             return null;
@@ -221,12 +214,70 @@ public class AddType extends AnalysisVisitor {
         if (assigneeType.getName().equals(table.getSuper()) && assignedTypeName.equals(table.getClassName())) {
             assignStmt.put("type", assigneeType.toString());
             return null;
+        } else if (assigneeType.getName().equals(table.getClassName()) && assignedTypeName.equals(table.getSuper())) {
+            //  a = new B() NOT valid!
+            // Because A extends B, B can’t extend A, and so we can infer this is not correct!
+
+            // Create error report
+            var message = String.format("Type of the assignee must be compatible with the assigned.'" +
+                            "%s' extends '%s', '%s' can’t extend '%s'.",
+                    table.getClassName(), table.getSuper(), table.getSuper(), table.getClassName());
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    assignStmt.getLine(),
+                    assignStmt.getColumn(),
+                    message,
+                    null)
+            );
+
+            assignStmt.put("type", TypeUtils.newType("invalid").toString());
+            return null;
+        }
+
+        if (assigneeType.getName().equals(table.getClassName()) && table.getImports().contains(assignedTypeName)) {
+            assignStmt.put("type", assigneeType.toString());
+            return null;
         }
 
         if (table.getImports().contains(assigneeType.getName()) && table.getImports().contains(assignedTypeName)) {
             assignStmt.put("type", assigneeType.toString());
             return null;
         }
+
+        if (table.getImports().contains(assigneeType.getName()) && assignedTypeName.equals(table.getClassName())) {
+            if (!assigneeType.getName().equals(table.getSuper())){
+                assignStmt.put("type", TypeUtils.newType("invalid").toString());
+                // Create error report
+                var message = String.format("Type of the assignee must be compatible with the assigned. " +
+                                "'%s' does not extend '%s'",
+                        assignedTypeName, assigneeType.getName());
+                addReport(Report.newError(
+                        Stage.SEMANTIC,
+                        assignStmt.getLine(),
+                        assignStmt.getColumn(),
+                        message,
+                        null)
+                );
+                return null;
+            }
+            assignStmt.put("type", assigneeType.toString());
+            return null;
+        }
+
+
+        if (assignedTypeName.equals("invalid")) {
+            assignStmt.put("type", TypeUtils.newType("invalid").toString());
+            return null;
+        }
+
+        // TODO
+        if (assignedTypeName.equals("imported")) {
+            assignStmt.put("type", assigneeType.toString());
+            return null;
+        }
+
+
+        assignStmt.put("type", TypeUtils.newType("invalid").toString());
 
         // Create error report
         var message = String.format("Type of the assignee must be compatible with the assigned. '%s' cannot be converted to '%s'",

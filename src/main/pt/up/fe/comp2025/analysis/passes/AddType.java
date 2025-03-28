@@ -24,6 +24,8 @@ public class AddType extends AnalysisVisitor {
     @Override
     public void buildVisitor() {
         addVisit(Kind.METHOD_DECL, this::visitMethodDecl);
+        addVisit(Kind.PARAM, this::visitVarDecl);
+        addVisit(Kind.VAR_DECL, this::visitVarDecl);
         addVisit(Kind.BINARY_EXPR, this::visitBinaryExpr);
         addVisit(Kind.INTEGER_LITERAL, this::visitIntegerLiteral);
         addVisit(Kind.BOOLEAN_LITERAL, this::visitBooleanLiteral);
@@ -48,6 +50,41 @@ public class AddType extends AnalysisVisitor {
             method.put("type", TypeUtils.newVoidType().toString());
         else
             method.put("type", table.getReturnType(currentMethod).toString());
+
+        return null;
+    }
+
+    private Void visitVarDecl(JmmNode varDecl, SymbolTable table) {
+        Type varType = types.getExprType(varDecl);
+        if (varDecl.getChild(0).getKind().equals("ClassType")) {
+            var varTypeName = TypeUtils.getNameType(varType.toString());
+
+            // Check if the variable is a class
+            if (varTypeName.equals(table.getClassName())) {
+                varDecl.put("type", varType.toString());
+                return null;
+            }
+
+            // Check if the variable is an import
+            for (var importName : table.getImports()) {
+                if (importName.equals(varTypeName) || importName.endsWith("." + varTypeName)) {
+                    varDecl.put("type", varType.toString());
+                    return null;
+                }
+            }
+            varDecl.put("type", TypeUtils.newType("invalid").toString());
+
+            // Create error report
+            var message = String.format("Undeclared type '%s', probably missing import", varTypeName);
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    varDecl.getLine(),
+                    varDecl.getColumn(),
+                    message,
+                    null)
+            );
+        } else
+            varDecl.put("type", varType.toString());
 
         return null;
     }
@@ -267,6 +304,8 @@ public class AddType extends AnalysisVisitor {
             methodCallExpr.put("type", TypeUtils.newType("imported").toString());
             return null;
         }
+
+        methodCallExpr.put("type", TypeUtils.newType("invalid").toString());
 
         // Create error report
         var message = String.format("Object of type '%s' has no method named '%s'.", objectType, methodCallExpr.get("name"));

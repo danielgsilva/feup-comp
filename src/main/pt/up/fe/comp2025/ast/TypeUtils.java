@@ -87,10 +87,8 @@ public class TypeUtils {
         switch (Kind.fromString(expr.getKind())) {
             case BINARY_EXPR:
                 return getBinaryExprType(expr);
-            case ASSIGN_STMT, ARRAY_ASSIGN_STMT:
-                return getAssignStmtType(expr);
-            case VAR_REF_EXPR:
-                return getVarRefExprType(expr);
+            case ASSIGN_STMT, ARRAY_ASSIGN_STMT, VAR_REF_EXPR, VAR_DECL, PARAM:
+                return getVarType(expr);
             default:
                 throw new IllegalArgumentException("Unsupported expression type: " + expr.getKind());
         }
@@ -107,6 +105,20 @@ public class TypeUtils {
 
     private Type getVarType(JmmNode node) {
         var varName = node.get("name");
+
+        // Check if the variable is an import
+        for (var importName : table.getImports()) {
+            if (importName.equals(varName) || importName.endsWith("." + varName)) {
+                return TypeUtils.newType("imported");
+            }
+        }
+
+        // Check if the variable is a field
+        for (var field : table.getFields()) {
+            if (field.getName().equals(varName))
+                return field.getType();
+        }
+
         if (node.getAncestor(Kind.METHOD_DECL).isEmpty())
             return null;
         var method = node.getAncestor(Kind.METHOD_DECL).get().get("name");
@@ -123,29 +135,6 @@ public class TypeUtils {
                 return param.getType();
         }
 
-        // Check if the variable is a field
-        for (var field : table.getFields()) {
-            if (field.getName().equals(varName))
-                return field.getType();
-        }
-
-        // Check if the variable is an import
-        for (var importName : table.getImports()) {
-            if (importName.equals(varName) || importName.endsWith("." + varName)) {
-                return TypeUtils.newType("imported");
-            }
-        }
-
         return null;
     }
-
-    private Type getAssignStmtType(JmmNode assignStmt) {
-        return getVarType(assignStmt);
-    }
-
-    private Type getVarRefExprType(JmmNode varRefExpr) {
-        return getVarType(varRefExpr);
-    }
-
-
 }

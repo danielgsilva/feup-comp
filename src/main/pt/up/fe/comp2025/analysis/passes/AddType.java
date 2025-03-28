@@ -306,7 +306,9 @@ public class AddType extends AnalysisVisitor {
         }
 
         if (objectType.equals("imported")
-                || table.getImports().contains(objectType) || table.getImports().contains(table.getSuper())) {
+                || table.getImports().contains(objectType)
+                || table.getImports().contains(table.getSuper())
+                || objectType.equals("String")) {
             methodCallExpr.put("type", TypeUtils.newType("imported").toString());
             return null;
         }

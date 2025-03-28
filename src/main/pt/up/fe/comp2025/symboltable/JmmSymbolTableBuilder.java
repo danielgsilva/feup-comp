@@ -116,6 +116,11 @@ public class JmmSymbolTableBuilder {
                 params.add(new Symbol(paramType, paramName));
             }
 
+            // Special case for main method
+            if (method.getKind().equals("MainMethodDecl")) {
+                params.add(new Symbol(TypeUtils.newArrayType("String"), method.get("argName")));
+            }
+
             map.put(name, params);
         }
 

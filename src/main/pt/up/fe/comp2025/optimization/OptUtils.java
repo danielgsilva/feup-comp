@@ -46,13 +46,17 @@ public class OptUtils {
     }
 
     public String toOllirType(Type type) {
-        return toOllirType(type.getName());
+        var isArray = type.isArray();
+        return toOllirType(type.getName(), isArray);
     }
 
-    private String toOllirType(String typeName) {
+    private String toOllirType(String typeName, boolean isArray) {
 
-        String type = "." + switch (typeName) {
+        String type = (isArray ? ".array" : "") + "." + switch (typeName) {
             case "int" -> "i32";
+            case "boolean" -> "bool";
+            case "String" -> "String";
+            case "void" -> "V";
             default -> throw new NotImplementedException(typeName);
         };
 

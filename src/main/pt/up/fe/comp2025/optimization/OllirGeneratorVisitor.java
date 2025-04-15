@@ -49,7 +49,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(RETURN_STMT, this::visitReturn);
         addVisit(ASSIGN_STMT, this::visitAssignStmt);
 
-//        setDefaultVisit(this::defaultVisit);
+        setDefaultVisit(this::defaultVisit);
     }
 
 
@@ -87,8 +87,9 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
     private String visitReturn(JmmNode node, Void unused) {
         // TODO: Hardcoded for int type, needs to be expanded
-        Type retType = TypeUtils.newIntType();
-
+        //Type retType = TypeUtils.newIntType();
+        String methodName = node.getAncestor(METHOD_DECL).map(method -> method.get("name")).orElseThrow();
+        Type retType = table.getReturnType(methodName);
 
         StringBuilder code = new StringBuilder();
 
@@ -125,9 +126,13 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         StringBuilder code = new StringBuilder(".method ");
 
         boolean isPublic = node.getBoolean("isPublic", false);
-
         if (isPublic) {
             code.append("public ");
+        }
+
+        boolean isStatic = node.getBoolean("isStatic", false);
+        if (isStatic) {
+            code.append("static ");
         }
 
         // name
@@ -136,12 +141,18 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
         // params
         // TODO: Hardcoded for a single parameter, needs to be expanded
-        var paramsCode = visit(node.getChild(1));
-        code.append("(" + paramsCode + ")");
+        //var paramsCode = visit(node.getChild(1));
+        //code.append("(" + paramsCode + ")");
+        var params = table.getParameters(name);
+        var paramsCode = params.stream()
+                .map(param -> param.getName() + ollirTypes.toOllirType(param.getType()))
+                .collect(Collectors.joining(", "));
+        code.append("(").append(paramsCode).append(")");
 
         // type
         // TODO: Hardcoded for int, needs to be expanded
-        var retType = ".i32";
+        //var retType = ".i32";
+        var retType = ollirTypes.toOllirType(table.getReturnType(name));
         code.append(retType);
         code.append(L_BRACKET);
 
@@ -165,10 +176,23 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
         code.append(NL);
         code.append(table.getClassName());
-        
+
+        // super class
+        if (table.getSuper() != null) {
+            code.append(" extends ").append(table.getSuper());
+        }
+
         code.append(L_BRACKET);
         code.append(NL);
         code.append(NL);
+
+        // fields
+        for (var field : table.getFields()) {
+            code.append(".field public ");
+            code.append(field.getName());
+            code.append(ollirTypes.toOllirType(field.getType()));
+            code.append(END_STMT);
+        }
 
         code.append(buildConstructor());
         code.append(NL);
@@ -192,10 +216,12 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
                 """.formatted(table.getClassName());
     }
 
-
     private String visitProgram(JmmNode node, Void unused) {
 
         StringBuilder code = new StringBuilder();
+
+        for (String importPath : table.getImports())
+            code.append("import ").append(importPath).append(END_STMT);
 
         node.getChildren().stream()
                 .map(this::visit)

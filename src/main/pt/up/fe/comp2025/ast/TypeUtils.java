@@ -61,6 +61,16 @@ public class TypeUtils {
         return "";
     }
 
+    public static String getIsArrayType(String type) {
+        // "Type[name=int, isArray=false]"
+        Pattern pattern = Pattern.compile("isArray=([^,\\]]+)");
+        Matcher matcher = pattern.matcher(type);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return "";
+    }
+
     public static Type convertType(JmmNode typeNode) {
 
         // TODO: When you support new types, this must be updated

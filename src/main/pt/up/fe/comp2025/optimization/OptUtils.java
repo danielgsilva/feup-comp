@@ -15,12 +15,14 @@ public class OptUtils {
 
 
     private final AccumulatorMap<String> temporaries;
+    private int ifLabelNumber;
 
     private final TypeUtils types;
 
     public OptUtils(TypeUtils types) {
         this.types = types;
         this.temporaries = new AccumulatorMap<>();
+        this.ifLabelNumber = -1;
     }
 
 
@@ -35,6 +37,11 @@ public class OptUtils {
         var nextTempNum = temporaries.add(prefix) - 1;
 
         return prefix + nextTempNum;
+    }
+
+    public int nextIfLabelNumber() {
+
+        return ++ifLabelNumber;
     }
 
 

@@ -49,13 +49,37 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(RETURN_STMT, this::visitReturn);
         addVisit(ASSIGN_STMT, this::visitAssignStmt);
         addVisit(EXPR_STMT, this::visitExprStmt);
+        addVisit(IF_STMT, this::visitIfStmt);
 
         setDefaultVisit(this::defaultVisit);
     }
 
+    private String visitIfStmt(JmmNode node, Void unused) {
+        var condition = exprVisitor.visit(node.getChild(0));
+
+        StringBuilder code = new StringBuilder();
+
+        code.append(condition.getComputation());
+
+        int num = ollirTypes.nextIfLabelNumber();
+        String thenLabel = "then" + num;
+        String endIfLabel = "endif" + num;
+        var thenBlockStmt = node.getChild(1);
+        var elseBlockStmt = node.getChild(2);
+
+        code.append("if (").append(condition.getCode()).append(") goto ").append(thenLabel).append(END_STMT);
+        code.append(visit(elseBlockStmt));
+        code.append("goto ").append(endIfLabel).append(END_STMT);
+        code.append(thenLabel).append(":").append(NL);
+        code.append(visit(thenBlockStmt));
+        code.append(endIfLabel).append(":").append(NL);
+
+        return code.toString();
+    }
+
     private String visitExprStmt(JmmNode node, Void unused) {
         var expr = exprVisitor.visit(node.getChild(0));
-        
+
         return expr.getComputation();
     }
 
@@ -197,6 +221,8 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
                 .collect(Collectors.joining("\n   ", "   ", ""));
 
         code.append(stmtsCode);
+        if (node.getChildren(RETURN_STMT).isEmpty())
+            code.append("ret.V").append(END_STMT);
         code.append(R_BRACKET);
         code.append(NL);
 
@@ -272,11 +298,11 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
      * @return
      */
     private String defaultVisit(JmmNode node, Void unused) {
-
+        StringBuilder code = new StringBuilder();
         for (var child : node.getChildren()) {
-            visit(child);
+            code.append(visit(child));
         }
 
-        return "";
+        return code.toString();
     }
 }

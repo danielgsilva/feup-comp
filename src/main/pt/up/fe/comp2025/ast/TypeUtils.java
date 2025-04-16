@@ -71,6 +71,10 @@ public class TypeUtils {
         return "";
     }
 
+    public static Type getTypeFromString(String type) {
+        return new Type(getNameType(type), Boolean.parseBoolean(getIsArrayType(type)));
+    }
+
     public static Type convertType(JmmNode typeNode) {
 
         // TODO: When you support new types, this must be updated

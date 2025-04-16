@@ -39,8 +39,25 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
         addVisit(BINARY_EXPR, this::visitBinExpr);
         addVisit(INTEGER_LITERAL, this::visitInteger);
         addVisit(METHOD_CALL_EXPR, this::visitMethodCallExpr);
+        addVisit(NEW_INT_ARRAY_EXPR, this::visitNewIntArrayExpr);
 
         setDefaultVisit(this::defaultVisit);
+    }
+
+    private OllirExprResult visitNewIntArrayExpr(JmmNode node, Void unused) {
+        var size = visit(node.getChild(0));
+
+        StringBuilder computation = new StringBuilder();
+        computation.append(size.getComputation());
+
+        String ollirType = ollirTypes.toOllirType(node.get("type"));
+        String code = ollirTypes.nextTemp() + ollirType;
+
+        computation.append(code).append(SPACE).append(ASSIGN).append(ollirType).append(SPACE)
+                .append("new").append("(").append("array").append(", ").append(size.getCode()).append(")")
+                .append(ollirType).append(END_STMT);
+
+        return new OllirExprResult(code, computation);
     }
 
     private OllirExprResult visitMethodCallExpr(JmmNode node, Void unused) {

@@ -16,6 +16,7 @@ public class OptUtils {
 
     private final AccumulatorMap<String> temporaries;
     private int ifLabelNumber;
+    private int whileLabelNumber;
 
     private final TypeUtils types;
 
@@ -23,6 +24,7 @@ public class OptUtils {
         this.types = types;
         this.temporaries = new AccumulatorMap<>();
         this.ifLabelNumber = -1;
+        this.whileLabelNumber = -1;
     }
 
 
@@ -42,6 +44,11 @@ public class OptUtils {
     public int nextIfLabelNumber() {
 
         return ++ifLabelNumber;
+    }
+
+    public int nextWhileLabelNumber() {
+
+        return ++whileLabelNumber;
     }
 
 

@@ -50,8 +50,30 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(ASSIGN_STMT, this::visitAssignStmt);
         addVisit(EXPR_STMT, this::visitExprStmt);
         addVisit(IF_STMT, this::visitIfStmt);
+        addVisit(WHILE_STMT, this::visitWhileStmt);
 
         setDefaultVisit(this::defaultVisit);
+    }
+
+    private String visitWhileStmt(JmmNode node, Void unused) {
+        int num = ollirTypes.nextWhileLabelNumber();
+        String whileLabel = "while" + num;
+        num = ollirTypes.nextIfLabelNumber();
+        String endIfLabel = "endif" + num;
+        var loopBlockStmt = node.getChild(1);
+
+        var condition = exprVisitor.visit(node.getChild(0));
+        StringBuilder code = new StringBuilder();
+
+        code.append(whileLabel).append(":").append(NL);
+        code.append(condition.getComputation());
+
+        code.append("if (!.bool ").append(condition.getCode()).append(") goto ").append(endIfLabel).append(END_STMT);
+        code.append(visit(loopBlockStmt));
+        code.append("goto ").append(whileLabel).append(END_STMT);
+        code.append(endIfLabel).append(":").append(NL);
+
+        return code.toString();
     }
 
     private String visitIfStmt(JmmNode node, Void unused) {

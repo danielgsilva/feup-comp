@@ -44,8 +44,37 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
         addVisit(LENGTH_EXPR, this::visitLengthExpr);
         addVisit(ARRAY_ACCESS_EXPR, this::visitArrayAccessExpr);
         addVisit(NEW_OBJECT_EXPR, this::visitNewObjectExpr);
+        addVisit(THIS_EXPR, this::visitThisExpr);
+        addVisit(PAREN_EXPR, this::visitParenExpr);
+        addVisit(NOT_EXPR, this::visitNotExpr);
 
         setDefaultVisit(this::defaultVisit);
+    }
+
+    private OllirExprResult visitNotExpr(JmmNode node, Void unused) {
+        var expr = visit(node.getChild(0));
+
+        StringBuilder computation = new StringBuilder();
+        computation.append(expr.getComputation());
+
+        String ollirType = ollirTypes.toOllirType(node.get("type"));
+        String code = ollirTypes.nextTemp() + ollirType;
+
+        computation.append(code).append(SPACE).append(ASSIGN).append(ollirType).append(SPACE)
+                .append("!").append(ollirType).append(SPACE).append(expr.getCode()).append(END_STMT);
+
+        return new OllirExprResult(code, computation);
+    }
+
+    private OllirExprResult visitParenExpr(JmmNode node, Void unused) {
+        var child = visit(node.getChild(0));
+        return new OllirExprResult(child.getCode(), child.getComputation());
+    }
+
+    private OllirExprResult visitThisExpr(JmmNode node, Void unused) {
+        String ollirType = ollirTypes.toOllirType(node.get("type"));
+        String code = "this" + ollirType;
+        return new OllirExprResult(code);
     }
 
     private OllirExprResult visitNewObjectExpr(JmmNode node, Void unused) {
@@ -138,10 +167,11 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
         }
         var methodOllirType = ollirTypes.toOllirType(methodType);
 
-        // if the method is void we don't need to assign the result to tmp
+        // if the method is void or the return value is not used, we don't need to assign the result to tmp
         boolean isVoid = methodType.getName().equals("void");
-        String code = isVoid ? "" : ollirTypes.nextTemp() + methodOllirType;
-        if (!isVoid)
+        boolean isReturnUsed = !node.getParent().getKind().equals(EXPR_STMT.toString());
+        String code = (isVoid || !isReturnUsed) ? "" : ollirTypes.nextTemp() + methodOllirType;
+        if (!isVoid && isReturnUsed)
             computation.append(code).append(SPACE).append(ASSIGN).append(methodOllirType).append(SPACE);
 
         var callerType = TypeUtils.getTypeFromString(node.getChild(0).get("type"));

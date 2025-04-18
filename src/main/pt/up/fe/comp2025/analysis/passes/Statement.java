@@ -58,7 +58,7 @@ public class Statement extends AnalysisVisitor {
 
     private Void visitArrayAssignStmt(JmmNode arrayAssignStmt, SymbolTable table) {
         // assignee[index] = assigned
-        var indexType = arrayAssignStmt.getChild(0).get("type");
+        var indexType = arrayAssignStmt.getChild(1).get("type");
         if (!indexType.equals(TypeUtils.newIntType().toString())) {
             // Create error report
             var message = String.format("Index in not an int, instead is an '%s'", indexType);
@@ -72,7 +72,7 @@ public class Statement extends AnalysisVisitor {
             return null;
         }
 
-        var assignedType = arrayAssignStmt.getChild(1).get("type");
+        var assignedType = arrayAssignStmt.getChild(2).get("type");
         if (!assignedType.equals(TypeUtils.newIntType().toString())) {
             // Create error report
             var message = String.format("Value in not an int, instead is '%s'", assignedType);

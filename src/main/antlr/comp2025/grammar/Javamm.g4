@@ -99,7 +99,7 @@ stmt
     | IF LPAREN expr RPAREN stmt ELSE stmt #IfStmt
     | WHILE LPAREN expr RPAREN stmt #WhileStmt
     | expr SEMI #ExprStmt
-    | name=ID LBRACK expr RBRACK ASSIGN expr SEMI #ArrayAssignStmt
+    | expr LBRACK expr RBRACK ASSIGN expr SEMI #ArrayAssignStmt
     | name=ID ASSIGN expr SEMI #AssignStmt
     | RETURN expr SEMI #ReturnStmt
     ;

@@ -294,10 +294,23 @@ public class AddType extends AnalysisVisitor {
     }
 
     private Void visitArrayAssignStmt(JmmNode arrayAssignStmt, SymbolTable table) {
-        var assigneeType = types.getExprType(arrayAssignStmt).toString();
-        if (!assigneeType.equals(TypeUtils.newArrayIntType().toString())) {
+        if (!arrayAssignStmt.getChild(0).getKind().equals(Kind.VAR_REF_EXPR.toString())) {
             // Create error report
-            var message = String.format("Expected an array but found '%s' instead.", assigneeType);
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    arrayAssignStmt.getLine(),
+                    arrayAssignStmt.getColumn(),
+                    "Assignee must be a variable reference",
+                    null)
+            );
+            arrayAssignStmt.put("type", TypeUtils.newType("invalid").toString());
+            return null;
+        }
+
+        var assigneeType = types.getExprType(arrayAssignStmt.getChild(0));
+        if (!assigneeType.toString().equals(TypeUtils.newArrayIntType().toString())) {
+            // Create error report
+            var message = String.format("Expected an int array but found '%s' instead.", assigneeType);
             addReport(Report.newError(
                     Stage.SEMANTIC,
                     arrayAssignStmt.getLine(),
@@ -305,6 +318,8 @@ public class AddType extends AnalysisVisitor {
                     message,
                     null)
             );
+            arrayAssignStmt.put("type", TypeUtils.newType("invalid").toString());
+            return null;
         }
 
         arrayAssignStmt.put("type", TypeUtils.newIntType().toString());

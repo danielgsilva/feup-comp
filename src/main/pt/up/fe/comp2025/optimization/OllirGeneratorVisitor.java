@@ -57,16 +57,21 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
     }
 
     private String visitArrayAssignStmt(JmmNode node, Void unused) {
-        var arrayId = node.get("name");
-        var index = exprVisitor.visit(node.getChild(0));
-        var value = exprVisitor.visit(node.getChild(1));
+        var arrayId = node.getChild(0).get("name");
+        var array = exprVisitor.visit(node.getChild(0));
+        var index = exprVisitor.visit(node.getChild(1));
+        var value = exprVisitor.visit(node.getChild(2));
+
+        String ollirType = ollirTypes.toOllirType(node.get("type"));
 
         StringBuilder code = new StringBuilder();
 
+        code.append(array.getComputation());
         code.append(index.getComputation());
         code.append(value.getComputation());
 
-        String ollirType = ollirTypes.toOllirType(node.get("type"));
+        if (isField(node.getChild(0)))
+            arrayId = array.getCode();
 
         code.append(arrayId).append("[").append(index.getCode()).append("]").append(ollirType).append(SPACE);
         code.append(ASSIGN).append(ollirType).append(SPACE);
@@ -131,17 +136,17 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         String methodName = node.getAncestor(METHOD_DECL).get().get("name");
         String varRefExprName = node.get("name");
 
-        for (var localVar: table.getLocalVariables(methodName)) {
+        for (var localVar : table.getLocalVariables(methodName)) {
             if (localVar.getName().equals(varRefExprName))
                 return false;
         }
 
-        for (var param: table.getParameters(methodName)) {
+        for (var param : table.getParameters(methodName)) {
             if (param.getName().equals(varRefExprName))
                 return false;
         }
 
-        for (var field: table.getFields()) {
+        for (var field : table.getFields()) {
             if (field.getName().equals(varRefExprName))
                 return true;
         }

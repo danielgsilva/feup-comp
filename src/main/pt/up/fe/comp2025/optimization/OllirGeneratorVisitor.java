@@ -51,8 +51,28 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         addVisit(EXPR_STMT, this::visitExprStmt);
         addVisit(IF_STMT, this::visitIfStmt);
         addVisit(WHILE_STMT, this::visitWhileStmt);
+        addVisit(ARRAY_ASSIGN_STMT, this::visitArrayAssignStmt);
 
         setDefaultVisit(this::defaultVisit);
+    }
+
+    private String visitArrayAssignStmt(JmmNode node, Void unused) {
+        var arrayId = node.get("name");
+        var index = exprVisitor.visit(node.getChild(0));
+        var value = exprVisitor.visit(node.getChild(1));
+
+        StringBuilder code = new StringBuilder();
+
+        code.append(index.getComputation());
+        code.append(value.getComputation());
+
+        String ollirType = ollirTypes.toOllirType(node.get("type"));
+
+        code.append(arrayId).append("[").append(index.getCode()).append("]").append(ollirType).append(SPACE);
+        code.append(ASSIGN).append(ollirType).append(SPACE);
+        code.append(value.getCode()).append(END_STMT);
+
+        return code.toString();
     }
 
     private String visitWhileStmt(JmmNode node, Void unused) {
@@ -68,7 +88,9 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         code.append(whileLabel).append(":").append(NL);
         code.append(condition.getComputation());
 
-        code.append("if (!.bool ").append(condition.getCode()).append(") goto ").append(endIfLabel).append(END_STMT);
+        var boolenType = TypeUtils.newBooleanType();
+        String ollirBooleanType = ollirTypes.toOllirType(boolenType);
+        code.append("if (!").append(ollirBooleanType).append(" ").append(condition.getCode()).append(") goto ").append(endIfLabel).append(END_STMT);
         code.append(visit(loopBlockStmt));
         code.append("goto ").append(whileLabel).append(END_STMT);
         code.append(endIfLabel).append(":").append(NL);

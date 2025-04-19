@@ -19,6 +19,24 @@ public class Array extends AnalysisVisitor {
         addVisit(Kind.ARRAY_ACCESS_EXPR, this::visitArrayAccessExpr);
         addVisit(Kind.ARRAY_EXPR, this::visitArrayExpr);
         addVisit(Kind.LENGTH_EXPR, this::visitLengthExpr);
+        addVisit(Kind.NEW_INT_ARRAY_EXPR, this::visitNewIntArrayExpr);
+    }
+
+    private Void visitNewIntArrayExpr(JmmNode newIntArrayExpr, SymbolTable table) {
+        var size = newIntArrayExpr.getChild(0);
+        if (!size.get("type").equals(TypeUtils.newIntType().toString())) {
+            // Create error report
+            var message = String.format("Array size must be of type int but found '%s'", size.get("type"));
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    newIntArrayExpr.getLine(),
+                    newIntArrayExpr.getColumn(),
+                    message,
+                    null)
+            );
+        }
+
+        return null;
     }
 
     private Void visitArrayAccessExpr(JmmNode arrayAccessExpr, SymbolTable table) {

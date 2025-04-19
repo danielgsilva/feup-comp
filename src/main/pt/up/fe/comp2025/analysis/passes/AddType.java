@@ -120,6 +120,25 @@ public class AddType extends AnalysisVisitor {
     }
 
     private Void visitNotExpr(JmmNode notExpr, SymbolTable table) {
+        var expr = notExpr.getChild(0);
+        if (!expr.hasAttribute("type"))
+            visit(expr, table);
+        var booleanType = TypeUtils.newBooleanType();
+        if (!expr.get("type").equals(booleanType.toString())) {
+            // Create error report
+            var message = String.format("Type error on children of operator '!', " +
+                    "expected type compatible with '%s' and got '%s'", booleanType, expr.get("type"));
+            addReport(Report.newError(
+                    Stage.SEMANTIC,
+                    notExpr.getLine(),
+                    notExpr.getColumn(),
+                    message,
+                    null)
+            );
+            notExpr.put("type", TypeUtils.newType("invalid").toString());
+            return null;
+        }
+
         notExpr.put("type", TypeUtils.newBooleanType().toString());
         return null;
     }
@@ -173,10 +192,8 @@ public class AddType extends AnalysisVisitor {
     }
 
     private Void visitArrayExpr(JmmNode arrayExpr, SymbolTable table) {
-        visit(arrayExpr.getChild(0), table);
-        var typeFirstElem = TypeUtils.getNameType(arrayExpr.getChild(0).get("type"));
-        // assume all elements have the same type
-        arrayExpr.put("type", TypeUtils.newArrayType(typeFirstElem).toString());
+        // arrays are always of type int[]
+        arrayExpr.put("type", TypeUtils.newArrayIntType().toString());
 
         return null;
     }
@@ -308,6 +325,9 @@ public class AddType extends AnalysisVisitor {
         }
 
         var assigneeType = types.getExprType(arrayAssignStmt.getChild(0));
+        // variable reference does not exist, but we already reported it
+        if (assigneeType == null)
+            return null;
         if (!assigneeType.toString().equals(TypeUtils.newArrayIntType().toString())) {
             // Create error report
             var message = String.format("Expected an int array but found '%s' instead.", assigneeType);

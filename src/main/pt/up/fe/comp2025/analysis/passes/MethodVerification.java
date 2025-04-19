@@ -74,7 +74,7 @@ public class MethodVerification extends AnalysisVisitor {
             return null;
         }
 
-        if (returnStmt.getFirst().getIndexOfSelf() == returnStmt.size() - 1) {
+        if (returnStmt.getFirst().getIndexOfSelf() != methodDecl.getNumChildren() - 1) {
             // Create error report
             var message = String.format("'Return' statement is not the last statement in method '%s'.", methodDecl.get("name"));
             addReport(Report.newError(

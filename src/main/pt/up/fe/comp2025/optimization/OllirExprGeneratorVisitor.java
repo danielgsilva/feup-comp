@@ -47,8 +47,32 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
         addVisit(THIS_EXPR, this::visitThisExpr);
         addVisit(PAREN_EXPR, this::visitParenExpr);
         addVisit(NOT_EXPR, this::visitNotExpr);
+        addVisit(ARRAY_EXPR, this::visitArrayExpr);
 
         setDefaultVisit(this::defaultVisit);
+    }
+
+    private OllirExprResult visitArrayExpr(JmmNode node, Void unused) {
+        String ollirType = ollirTypes.toOllirType(node.get("type"));
+        var tmp = ollirTypes.nextTemp();
+        String code = tmp + ollirType;
+        // jmm array elems are of type int
+        String ollirIntType = ollirTypes.toOllirType(TypeUtils.newIntType());
+
+        StringBuilder computation = new StringBuilder();
+        var arrayElems = node.getChildren();
+
+        computation.append(code).append(SPACE).append(ASSIGN).append(ollirType).append(SPACE)
+                .append("new(array, ").append(arrayElems.size()).append(ollirIntType).append(")").append(ollirType).append(END_STMT);
+
+        for (int i = 0; i < arrayElems.size(); i++) {
+            var elem = visit(arrayElems.get(i));
+            computation.append(elem.getComputation());
+            computation.append(tmp).append("[").append(i).append(ollirIntType).append("]").append(ollirIntType).append(SPACE)
+                    .append(ASSIGN).append(ollirIntType).append(SPACE).append(elem.getCode()).append(END_STMT);
+        }
+
+        return new OllirExprResult(code, computation);
     }
 
     private OllirExprResult visitNotExpr(JmmNode node, Void unused) {
@@ -145,16 +169,41 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
         StringBuilder computation = new StringBuilder();
         computation.append(caller.getComputation());
 
-        List<String> tmpCodes = new ArrayList<>();
-        var numParams = node.getChildren().size() - 1;
-        for (int i = 1; i <= numParams; i++) {
-            var param = visit(node.getChild(i));
-            computation.append(param.getComputation());
-            tmpCodes.add(param.getCode());
+        List<String> argCodes = new ArrayList<>();
+        var numArgNodes = node.getChildren().size() - 1;
+        for (int i = 1; i <= numArgNodes; i++) {
+            var arg = visit(node.getChild(i));
+            computation.append(arg.getComputation());
+            argCodes.add(arg.getCode());
         }
 
         var methodName = node.get("name");
         var methodType = TypeUtils.getTypeFromString(node.get("type"));
+
+        var isVarargs = false;
+        var params = table.getParameters(methodName);
+        if (!params.isEmpty())
+            isVarargs = (boolean) params.getLast().getType().getObject("isVarargs");
+
+        if (isVarargs) {
+            String ollirIntArrayType = ollirTypes.toOllirType(TypeUtils.newArrayIntType());
+            String ollirIntType = ollirTypes.toOllirType(TypeUtils.newIntType());
+            String tmp = ollirTypes.nextTemp();
+            String tmpCode = tmp + ollirIntArrayType;
+            var numArrayElems = numArgNodes - params.size() + 1;
+
+            computation.append(tmpCode).append(SPACE).append(ASSIGN).append(ollirIntArrayType).append(SPACE)
+                    .append("new(array, ").append(numArrayElems).append(ollirIntType).append(")").append(ollirIntArrayType).append(END_STMT);
+
+            for (int i = 0; i < numArrayElems; i++) {
+                var elemCode = argCodes.get(argCodes.size() - numArrayElems + i);
+                computation.append(tmp).append("[").append(i).append(ollirIntType).append("]").append(ollirIntType).append(SPACE)
+                        .append(ASSIGN).append(ollirIntType).append(SPACE).append(elemCode).append(END_STMT);
+            }
+
+            argCodes.subList(argCodes.size() - numArrayElems, argCodes.size()).clear();
+            argCodes.add(tmpCode);
+        }
 
         // if method type is imported, we try to get the type from the assign statement
         // if it is not present, we set it to void
@@ -168,7 +217,7 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
         var methodOllirType = ollirTypes.toOllirType(methodType);
 
         // if the method is void or the return value is not used, we don't need to assign the result to tmp
-        boolean isVoid = methodType.getName().equals("void");
+        boolean isVoid = methodOllirType.equals(".V");
         boolean isReturnUsed = !node.getParent().getKind().equals(EXPR_STMT.toString());
         String code = (isVoid || !isReturnUsed) ? "" : ollirTypes.nextTemp() + methodOllirType;
         if (!isVoid && isReturnUsed)
@@ -183,9 +232,9 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
             computation.append("invokevirtual");
 
         computation.append("(").append(caller.getCode()).append(", ").append(String.format("\"%s\"", methodName));
-        for (int i = 1; i <= numParams; i++) {
+        for (int i = 1; i <= params.size(); i++) {
             computation.append(", ");
-            computation.append(tmpCodes.get(i - 1));
+            computation.append(argCodes.get(i - 1));
         }
         computation.append(")").append(methodOllirType).append(END_STMT);
 

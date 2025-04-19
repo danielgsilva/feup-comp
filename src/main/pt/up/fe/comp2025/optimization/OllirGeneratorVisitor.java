@@ -242,23 +242,26 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
             code.append("static ");
         }
 
-        // name
         var name = node.get("name");
+        var params = table.getParameters(name);
+
+        // varargs
+        if (!params.isEmpty()) {
+            var isVarargs = (boolean) params.getLast().getType().getObject("isVarargs");
+            if (isVarargs)
+                code.append("varargs ");
+        }
+
+        // name
         code.append(name);
 
         // params
-        // TODO: Hardcoded for a single parameter, needs to be expanded
-        //var paramsCode = visit(node.getChild(1));
-        //code.append("(" + paramsCode + ")");
-        var params = table.getParameters(name);
         var paramsCode = params.stream()
                 .map(param -> param.getName() + ollirTypes.toOllirType(param.getType()))
                 .collect(Collectors.joining(", "));
         code.append("(").append(paramsCode).append(")");
 
         // type
-        // TODO: Hardcoded for int, needs to be expanded
-        //var retType = ".i32";
         var retType = ollirTypes.toOllirType(table.getReturnType(name));
         code.append(retType);
         code.append(L_BRACKET);
@@ -270,8 +273,10 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
                 .collect(Collectors.joining("\n   ", "   ", ""));
 
         code.append(stmtsCode);
+
         if (node.getChildren(RETURN_STMT).isEmpty())
             code.append("ret.V").append(END_STMT);
+
         code.append(R_BRACKET);
         code.append(NL);
 

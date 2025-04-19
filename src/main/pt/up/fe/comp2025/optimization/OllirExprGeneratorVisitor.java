@@ -182,7 +182,7 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
 
         var isVarargs = false;
         var params = table.getParameters(methodName);
-        if (!params.isEmpty())
+        if (params != null && !params.isEmpty())
             isVarargs = (boolean) params.getLast().getType().getObject("isVarargs");
 
         if (isVarargs) {
@@ -191,6 +191,7 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
             String tmp = ollirTypes.nextTemp();
             String tmpCode = tmp + ollirIntArrayType;
             var numArrayElems = numArgNodes - params.size() + 1;
+            numArgNodes = params.size();
 
             computation.append(tmpCode).append(SPACE).append(ASSIGN).append(ollirIntArrayType).append(SPACE)
                     .append("new(array, ").append(numArrayElems).append(ollirIntType).append(")").append(ollirIntArrayType).append(END_STMT);
@@ -232,7 +233,7 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
             computation.append("invokevirtual");
 
         computation.append("(").append(caller.getCode()).append(", ").append(String.format("\"%s\"", methodName));
-        for (int i = 1; i <= params.size(); i++) {
+        for (int i = 1; i <= numArgNodes; i++) {
             computation.append(", ");
             computation.append(argCodes.get(i - 1));
         }

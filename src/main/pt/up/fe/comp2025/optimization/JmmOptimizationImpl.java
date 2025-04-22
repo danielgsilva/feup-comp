@@ -24,8 +24,15 @@ public class JmmOptimizationImpl implements JmmOptimization {
 
     @Override
     public JmmSemanticsResult optimize(JmmSemanticsResult semanticsResult) {
+        var ast = semanticsResult.getRootNode();
 
-        //TODO: Do your AST-based optimizations here
+        var folding = new ConstantFoldingVisitor();
+
+        boolean changed;
+        do {
+            folding.reset();
+            changed = folding.visit(ast);
+        } while (changed);
 
         return semanticsResult;
     }

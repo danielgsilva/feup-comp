@@ -3,6 +3,7 @@ package pt.up.fe.comp2025.optimization;
 import pt.up.fe.comp.jmm.analysis.JmmSemanticsResult;
 import pt.up.fe.comp.jmm.ollir.JmmOptimization;
 import pt.up.fe.comp.jmm.ollir.OllirResult;
+import pt.up.fe.comp.jmm.parser.JmmParserResult;
 
 import java.util.Collections;
 
@@ -26,6 +27,9 @@ public class JmmOptimizationImpl implements JmmOptimization {
     public JmmSemanticsResult optimize(JmmSemanticsResult semanticsResult) {
         var ast = semanticsResult.getRootNode();
 
+        // DEBUG: print AST before optimization
+        System.out.println("AST BEFORE OPTIMIZATION:\n" + ast.toTree());
+
         var folding = new ConstantFoldingVisitor();
 
         boolean changed;
@@ -34,7 +38,14 @@ public class JmmOptimizationImpl implements JmmOptimization {
             changed = folding.visit(ast);
         } while (changed);
 
-        return semanticsResult;
+        // DEBUG: print AST after optimization
+        System.out.println("AST AFTER OPTIMIZATION:\n" + ast.toTree());
+
+        var parserResult = new JmmParserResult(ast, semanticsResult.getReports(), semanticsResult.getConfig());
+
+        return new JmmSemanticsResult(parserResult,
+                semanticsResult.getSymbolTable(),
+                semanticsResult.getReports());
     }
 
     @Override

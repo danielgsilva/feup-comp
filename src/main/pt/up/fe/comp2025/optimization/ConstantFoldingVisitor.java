@@ -51,7 +51,7 @@ public class ConstantFoldingVisitor extends PreorderJmmVisitor<Void, Boolean> {
             return false;
         }
 
-        // Debug output (can be removed)
+        // Debug output
         System.out.printf("Constant folding: %d %s %d -> %d%n", leftVal, op, rightVal, result);
 
         // Create a new literal node

@@ -73,7 +73,8 @@ public class Statement extends AnalysisVisitor {
         }
 
         var assignedType = arrayAssignStmt.getChild(2).get("type");
-        if (!assignedType.equals(TypeUtils.newIntType().toString())) {
+        if (!assignedType.equals(TypeUtils.newIntType().toString())
+                && !TypeUtils.getNameType(assignedType).equals("imported")) {
             // Create error report
             var message = String.format("Value in not an int, instead is '%s'", assignedType);
             addReport(Report.newError(

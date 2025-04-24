@@ -26,16 +26,29 @@ public class JmmOptimizationImpl implements JmmOptimization {
     @Override
     public JmmSemanticsResult optimize(JmmSemanticsResult semanticsResult) {
         var ast = semanticsResult.getRootNode();
+        var symbolTable = semanticsResult.getSymbolTable();
 
         // DEBUG: print AST before optimization
         System.out.println("AST BEFORE OPTIMIZATION:\n" + ast.toTree());
 
+        var propagation = new ConstantPropagationVisitor(symbolTable);
         var folding = new ConstantFoldingVisitor();
 
         boolean changed;
         do {
+            // Reset change flags
+            propagation.reset();
             folding.reset();
-            changed = folding.visit(ast);
+
+            // Apply constant propagation
+            boolean propChanged = propagation.visit(ast);
+
+            // Apply constant folding
+            boolean foldChanged = folding.visit(ast);
+
+            // Check if any changes were made
+            changed = propChanged || foldChanged;
+
         } while (changed);
 
         // DEBUG: print AST after optimization

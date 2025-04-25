@@ -4,80 +4,104 @@ import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp.jmm.ast.JmmNodeImpl;
 import pt.up.fe.comp.jmm.ast.PreorderJmmVisitor;
 import pt.up.fe.comp2025.ast.Kind;
+import pt.up.fe.comp2025.ast.TypeUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
-public class ConstantFoldingVisitor extends PreorderJmmVisitor<Void, Boolean> {
+public class ConstantFoldingVisitor extends PreorderJmmVisitor<Void, Void> {
 
     private boolean changed;
 
     public ConstantFoldingVisitor() {
         this.changed = false;
-        buildVisitor();
-    }
-
-    @Override
-    protected void buildVisitor() {
-        addVisit(Kind.BINARY_EXPR.getNodeName(), this::foldBinaryExpr);
-        setDefaultVisit(this::defaultVisit);
-    }
-
-    private Boolean foldBinaryExpr(JmmNode node, Void unused) {
-        var left = node.getChild(0);
-        var right = node.getChild(1);
-        var op = node.get("op");
-
-        // Only fold if both sides are integer literals
-        if (!Kind.INTEGER_LITERAL.check(left) || !Kind.INTEGER_LITERAL.check(right)) {
-            return false;
-        }
-
-        int leftVal = Integer.parseInt(left.get("value"));
-        int rightVal = Integer.parseInt(right.get("value"));
-        int result;
-
-        try {
-            result = switch (op) {
-                case "+" -> leftVal + rightVal;
-                case "-" -> leftVal - rightVal;
-                case "*" -> leftVal * rightVal;
-                case "/" -> {
-                    if (rightVal == 0) throw new ArithmeticException("Division by zero");
-                    yield leftVal / rightVal;
-                }
-                default -> throw new IllegalArgumentException("Unsupported operator for folding: " + op);
-            };
-        } catch (Exception e) {
-            return false;
-        }
-
-        // Debug output
-        System.out.printf("Constant folding: %d %s %d -> %d%n", leftVal, op, rightVal, result);
-
-        // Create a new literal node
-        JmmNode foldedNode = new JmmNodeImpl(List.of(Kind.INTEGER_LITERAL.getNodeName()));
-        foldedNode.put("value", String.valueOf(result));
-
-        // Replace the original node with the folded result
-        node.replace(foldedNode);
-
-        changed = true;
-        return true;
-    }
-
-    private Boolean defaultVisit(JmmNode node, Void unused) {
-        boolean localChanged = false;
-        for (var child : node.getChildren()) {
-            localChanged |= visit(child);
-        }
-        return localChanged;
     }
 
     public boolean didChange() {
         return changed;
     }
 
-    public void reset() {
-        changed = false;
+    @Override
+    protected void buildVisitor() {
+        addVisit(Kind.BINARY_EXPR, this::foldBinaryExpr);
+        setDefaultVisit(this::defaultVisit);
+    }
+
+    private Void foldBinaryExpr(JmmNode node, Void unused) {
+        var left = node.getChild(0);
+        var right = node.getChild(1);
+        var op = node.get("op");
+
+        if (Kind.INTEGER_LITERAL.check(left) && Kind.INTEGER_LITERAL.check(right)) {
+            int leftVal = Integer.parseInt(left.get("value"));
+            int rightVal = Integer.parseInt(right.get("value"));
+            int result = 0;
+
+            // Special case for operator "<"
+            if (op.equals("<")) {
+                boolean comparisonResult = leftVal < rightVal;
+
+                List<String> hierarchy = new ArrayList<>(List.of(Kind.BOOLEAN_LITERAL.toString(), "Expr"));
+                JmmNode newNode = new JmmNodeImpl(hierarchy);
+                newNode.put("value", Boolean.toString(comparisonResult));
+                newNode.put("type", TypeUtils.newBooleanType().toString());
+                node.replace(newNode);
+            } else {
+                switch (op) {
+                    case "+":
+                        result = leftVal + rightVal;
+                        break;
+                    case "-":
+                        result = leftVal - rightVal;
+                        break;
+                    case "*":
+                        result = leftVal * rightVal;
+                        break;
+                    case "/":
+                        if (rightVal == 0) throw new ArithmeticException("Division by zero");
+                        result = leftVal / rightVal;
+                        break;
+                    default:
+                        return null; // Unsupported operator
+
+                }
+            }
+
+            // Create a new literal node
+            JmmNode newNode = new JmmNodeImpl(left.getHierarchy()); // left or right can be used
+            newNode.put("value", Integer.toString(result));
+            newNode.put("type", left.get("type"));
+            node.replace(newNode);
+
+        } else if (Kind.BOOLEAN_LITERAL.check(left) && Kind.BOOLEAN_LITERAL.check(right)) {
+            boolean leftVal = Boolean.parseBoolean(left.get("value"));
+            boolean rightVal = Boolean.parseBoolean(right.get("value"));
+            boolean result;
+            if (op.equals("&&")) {
+                result = leftVal && rightVal;
+            } else {
+                return null; // Unsupported operator for boolean folding
+            }
+
+            // Create a new literal node
+            JmmNode newNode = new JmmNodeImpl(left.getHierarchy()); // left or right can be used
+            newNode.put("value", Boolean.toString(result));
+            newNode.put("type", left.get("type"));
+            node.replace(newNode);
+
+        } else {
+            return null;
+        }
+
+        changed = true;
+
+        return null;
+    }
+
+    private Void defaultVisit(JmmNode node, Void unused) {
+        for (var child : node.getChildren())
+            visit(child);
+
+        return null;
     }
 }

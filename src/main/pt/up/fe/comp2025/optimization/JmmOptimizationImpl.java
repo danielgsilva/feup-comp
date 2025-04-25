@@ -3,7 +3,7 @@ package pt.up.fe.comp2025.optimization;
 import pt.up.fe.comp.jmm.analysis.JmmSemanticsResult;
 import pt.up.fe.comp.jmm.ollir.JmmOptimization;
 import pt.up.fe.comp.jmm.ollir.OllirResult;
-import pt.up.fe.comp.jmm.parser.JmmParserResult;
+import pt.up.fe.comp2025.CompilerConfig;
 
 import java.util.Collections;
 
@@ -25,40 +25,33 @@ public class JmmOptimizationImpl implements JmmOptimization {
 
     @Override
     public JmmSemanticsResult optimize(JmmSemanticsResult semanticsResult) {
+        // Check if optimization is enabled (option "-o")
+        if (!CompilerConfig.getOptimize(semanticsResult.getConfig()))
+            return semanticsResult;
+
         var ast = semanticsResult.getRootNode();
-        var symbolTable = semanticsResult.getSymbolTable();
 
-        // DEBUG: print AST before optimization
-        System.out.println("AST BEFORE OPTIMIZATION:\n" + ast.toTree());
-
-        var propagation = new ConstantPropagationVisitor(symbolTable);
-        var folding = new ConstantFoldingVisitor();
+        // Print AST before optimization
+        //System.out.println("\nAST BEFORE OPTIMIZATION:\n\n" + ast.toTree());
 
         boolean changed;
         do {
-            // Reset change flags
-            propagation.reset();
-            folding.reset();
-
             // Apply constant propagation
-            boolean propChanged = propagation.visit(ast);
+            var propagationVisitor = new ConstantPropagationVisitor();
+            propagationVisitor.visit(ast);
 
             // Apply constant folding
-            boolean foldChanged = folding.visit(ast);
+            var foldingVisitor = new ConstantFoldingVisitor();
+            foldingVisitor.visit(ast);
 
-            // Check if any changes were made
-            changed = propChanged || foldChanged;
+            changed = propagationVisitor.didChange() || foldingVisitor.didChange();
 
         } while (changed);
 
-        // DEBUG: print AST after optimization
-        System.out.println("AST AFTER OPTIMIZATION:\n" + ast.toTree());
+        // Print AST after optimization
+        //System.out.println("\nAST AFTER OPTIMIZATION:\n\n" + ast.toTree());
 
-        var parserResult = new JmmParserResult(ast, semanticsResult.getReports(), semanticsResult.getConfig());
-
-        return new JmmSemanticsResult(parserResult,
-                semanticsResult.getSymbolTable(),
-                semanticsResult.getReports());
+        return semanticsResult;
     }
 
     @Override

@@ -120,10 +120,19 @@ public class TypeUtils {
     private Type getVarType(JmmNode node) {
         var varName = node.get("name");
 
-        // Check if the variable is an import
-        for (var importName : table.getImports()) {
-            if (importName.equals(varName) || importName.endsWith("." + varName)) {
-                return TypeUtils.newType("imported");
+        if (node.getAncestor(Kind.METHOD_DECL).isPresent()) {
+            var method = node.getAncestor(Kind.METHOD_DECL).get().get("name");
+
+            // Check if the variable is a local variable
+            for (var localVar : table.getLocalVariables(method)) {
+                if (localVar.getName().equals(varName))
+                    return localVar.getType();
+            }
+
+            // Check if the variable is a parameter
+            for (var param : table.getParameters(method)) {
+                if (param.getName().equals(varName))
+                    return param.getType();
             }
         }
 
@@ -133,20 +142,11 @@ public class TypeUtils {
                 return field.getType();
         }
 
-        if (node.getAncestor(Kind.METHOD_DECL).isEmpty())
-            return null;
-        var method = node.getAncestor(Kind.METHOD_DECL).get().get("name");
-
-        // Check if the variable is a local variable
-        for (var localVar : table.getLocalVariables(method)) {
-            if (localVar.getName().equals(varName))
-                return localVar.getType();
-        }
-
-        // Check if the variable is a parameter
-        for (var param : table.getParameters(method)) {
-            if (param.getName().equals(varName))
-                return param.getType();
+        // Check if the variable is an import
+        for (var importName : table.getImports()) {
+            if (importName.equals(varName) || importName.endsWith("." + varName)) {
+                return TypeUtils.newType("imported");
+            }
         }
 
         return null;

@@ -90,11 +90,20 @@ public class UndeclaredVariable extends AnalysisVisitor {
     private Void visitAssignStmt(JmmNode assignStmt, SymbolTable table) {
         SpecsCheck.checkNotNull(currentMethod, () -> "Expected current method to be set");
 
+        if (!currentMethod.equals("main"))
+            return null;
+
+        // Check if exists field access inside a static method (main)
         var varName = assignStmt.get("name");
+
+        // Var is a declared variable, return
+        if (table.getLocalVariables(currentMethod).stream()
+                .anyMatch(varDecl -> varDecl.getName().equals(varName))) {
+            return null;
+        }
 
         if (table.getFields().stream()
                 .anyMatch(field -> field.getName().equals(varName))) {
-            if (currentMethod.equals("main")) {
                 // Create error report
                 var message = String.format("Found field access '%s' inside a static method.", varName);
                 addReport(Report.newError(
@@ -104,7 +113,6 @@ public class UndeclaredVariable extends AnalysisVisitor {
                         message,
                         null)
                 );
-            }
             return null;
         }
 

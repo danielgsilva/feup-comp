@@ -19,6 +19,7 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
     private static final String SPACE = " ";
     private static final String ASSIGN = ":=";
     private final String END_STMT = ";\n";
+    private final String NL = "\n";
 
     private final SymbolTable table;
 
@@ -26,10 +27,10 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
     private final OptUtils ollirTypes;
 
 
-    public OllirExprGeneratorVisitor(SymbolTable table) {
+    public OllirExprGeneratorVisitor(SymbolTable table, OptUtils ollirTypes) {
         this.table = table;
         this.types = new TypeUtils(table);
-        this.ollirTypes = new OptUtils(types);
+        this.ollirTypes = ollirTypes;
     }
 
 
@@ -257,8 +258,39 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
         return new OllirExprResult(code);
     }
 
+    private OllirExprResult visitShortCircuitAnd(JmmNode node) {
+        var lhs = visit(node.getChild(0));
+        var rhs = visit(node.getChild(1));
+
+        StringBuilder computation = new StringBuilder();
+        computation.append(lhs.getComputation());
+
+        String ollirType = ollirTypes.toOllirType(node.get("type"));
+        String code = ollirTypes.nextTemp() + ollirType;
+
+        int num = ollirTypes.nextIfLabelNumber();
+        String thenLabel = "then" + num;
+        String endIfLabel = "endif" + num;
+
+        computation.append("if (").append(lhs.getCode()).append(") goto ").append(thenLabel).append(END_STMT);
+        computation.append(code).append(SPACE).append(ASSIGN).append(ollirType).append(SPACE)
+                .append("0").append(ollirType).append(END_STMT);
+        computation.append("goto ").append(endIfLabel).append(END_STMT);
+        computation.append(thenLabel).append(":").append(NL);
+        computation.append(rhs.getComputation());
+        computation.append(code).append(SPACE).append(ASSIGN).append(ollirType).append(SPACE)
+                .append(rhs.getCode()).append(END_STMT);
+        computation.append(endIfLabel).append(":").append(NL);
+
+        return new OllirExprResult(code, computation);
+    }
+
 
     private OllirExprResult visitBinExpr(JmmNode node, Void unused) {
+        var op = node.get("op");
+
+        if (op.equals("&&"))
+            return visitShortCircuitAnd(node);
 
         var lhs = visit(node.getChild(0));
         var rhs = visit(node.getChild(1));
@@ -279,7 +311,7 @@ public class OllirExprGeneratorVisitor extends PreorderJmmVisitor<Void, OllirExp
                 .append(lhs.getCode()).append(SPACE);
 
         Type type = types.getExprType(node);
-        computation.append(node.get("op")).append(ollirTypes.toOllirType(type)).append(SPACE)
+        computation.append(op).append(ollirTypes.toOllirType(type)).append(SPACE)
                 .append(rhs.getCode()).append(END_STMT);
 
         return new OllirExprResult(code, computation);

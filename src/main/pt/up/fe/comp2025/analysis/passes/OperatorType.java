@@ -23,13 +23,24 @@ public class OperatorType extends AnalysisVisitor {
         var typeLeftOperand = binaryExpr.getChild(0).get("type");
         var typeRightOperand = binaryExpr.getChild(1).get("type");
 
-        if (type.equals(typeLeftOperand) && type.equals(typeRightOperand)) return null;
-
-        if (binaryExpr.get("op").equals("<") &&
-                typeLeftOperand.equals(TypeUtils.newIntType().toString()) &&
-                typeRightOperand.equals(TypeUtils.newIntType().toString())) {
-            return null;
+        if (binaryExpr.get("op").equals("<")) {
+            if (typeLeftOperand.equals(TypeUtils.newIntType().toString()) &&
+                    typeRightOperand.equals(TypeUtils.newIntType().toString())) {
+                return null;
+            } else {
+                // Create error report
+                var message = String.format("Operator '<' can only be used with integer types, but got '%s' and '%s'", typeLeftOperand, typeRightOperand);
+                addReport(Report.newError(
+                        Stage.SEMANTIC,
+                        binaryExpr.getLine(),
+                        binaryExpr.getColumn(),
+                        message,
+                        null)
+                );
+            }
         }
+
+        if (type.equals(typeLeftOperand) && type.equals(typeRightOperand)) return null;
 
         // Create error report
         var message = String.format("Expected both operands of type '%s', got '%s' and '%s' instead", type, typeLeftOperand, typeRightOperand);

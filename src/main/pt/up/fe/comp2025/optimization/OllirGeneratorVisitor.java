@@ -35,7 +35,7 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
         this.table = table;
         this.types = new TypeUtils(table);
         this.ollirTypes = new OptUtils(types);
-        exprVisitor = new OllirExprGeneratorVisitor(table);
+        exprVisitor = new OllirExprGeneratorVisitor(table, ollirTypes);
     }
 
 

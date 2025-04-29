@@ -41,11 +41,11 @@ public class LivenessAnalysis {
                 Set<String> oldIn = new HashSet<>(inMap.get(inst));
                 Set<String> oldOut = new HashSet<>(outMap.get(inst));
 
-                // OUT[n] = U IN[s] para cada sucessor s
+                // OUT[n] = união dos IN dos sucessores
                 Set<String> out = new HashSet<>();
-                for (Node succ : Arrays.asList(inst.getSucc1(), inst.getSucc2())) {
-                    if (succ instanceof Instruction && inMap.containsKey(succ)) {
-                        out.addAll(inMap.get(succ));
+                for (Node succ : inst.getSuccessors()) {
+                    if (succ instanceof Instruction successor && inMap.containsKey(successor)) {
+                        out.addAll(inMap.get(successor));
                     }
                 }
 
@@ -54,8 +54,9 @@ public class LivenessAnalysis {
 
                 // IN[n] = use[n] U (OUT[n] - def[n])
                 Set<String> in = new HashSet<>(use);
-                out.removeAll(def);
-                in.addAll(out);
+                Set<String> outMinusDef = new HashSet<>(out);
+                outMinusDef.removeAll(def);
+                in.addAll(outMinusDef);
 
                 // Atualiza
                 inMap.put(inst, in);
@@ -70,22 +71,68 @@ public class LivenessAnalysis {
 
     private Set<String> getDef(Instruction inst) {
         Set<String> defs = new HashSet<>();
+
         if (inst instanceof AssignInstruction assign) {
             Element dest = assign.getDest();
-            if (dest instanceof Operand op) {
+            if (dest instanceof Operand op && !op.isLiteral()) {
                 defs.add(op.getName());
             }
         }
+
         return defs;
     }
 
     private Set<String> getUse(Instruction inst) {
         Set<String> uses = new HashSet<>();
-        for (Element operand : inst.getOperands()) {
-            if (operand instanceof Operand op && !op.isLiteral()) {
-                uses.add(op.getName());
+
+        if (inst instanceof AssignInstruction assign) {
+            Instruction rhs = assign.getRhs();
+            uses.addAll(getUsesFromInstruction(rhs));
+        }
+
+        if (inst instanceof CallInstruction call) {
+            for (Element arg : call.getArguments()) {
+                if (arg instanceof Operand op && !op.isLiteral()) {
+                    uses.add(op.getName());
+                }
             }
         }
+
+        if (inst instanceof ReturnInstruction ret) {
+            ret.getOperand().ifPresent(op -> {
+                if (op instanceof Operand operand && !operand.isLiteral()) {
+                    uses.add(operand.getName());
+                }
+            });
+        }
+
+        return uses;
+    }
+
+    // Helper to extract uses recursively from nested instructions (like BinaryOp)
+    private Set<String> getUsesFromInstruction(Instruction inst) {
+        Set<String> uses = new HashSet<>();
+
+        if (inst instanceof BinaryOpInstruction binOp) {
+            Element left = binOp.getLeftOperand();
+            Element right = binOp.getRightOperand();
+
+            if (left instanceof Operand op && !op.isLiteral()) uses.add(op.getName());
+            if (right instanceof Operand op && !op.isLiteral()) uses.add(op.getName());
+
+        } else if (inst instanceof UnaryOpInstruction unOp) {
+            Element operand = unOp.getOperand();
+            if (operand instanceof Operand op && !op.isLiteral()) uses.add(op.getName());
+
+        } else if (inst instanceof CallInstruction call) {
+            for (Element arg : call.getArguments()) {
+                if (arg instanceof Operand op && !op.isLiteral()) uses.add(op.getName());
+            }
+        } else if (inst instanceof SingleOpInstruction single) {
+            Element operand = single.getSingleOperand();
+            if (operand instanceof Operand op && !op.isLiteral()) uses.add(op.getName());
+        }
+
         return uses;
     }
 }

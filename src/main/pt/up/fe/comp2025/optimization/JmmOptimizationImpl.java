@@ -56,7 +56,26 @@ public class JmmOptimizationImpl implements JmmOptimization {
 
     @Override
     public OllirResult optimize(OllirResult ollirResult) {
+        String maxRegistersConfig = ollirResult.getConfig().get("registerAllocation");
+        int maxRegisters = maxRegistersConfig != null ? Integer.parseInt(maxRegistersConfig) : -1;
 
+        if (maxRegisters < 0) {
+            return ollirResult;
+        }
+
+        var classUnit = ollirResult.getOllirClass();
+        for(var method: classUnit.getMethods()) {
+            LivenessAnalysis livenessAnalysis = new LivenessAnalysis();
+            livenessAnalysis.analyze(method);
+
+            InterferenceGraph interferenceGraph = InterferenceGraph.fromLiveness(livenessAnalysis.getOutMap());
+            var merda = interferenceGraph.toString();
+            System.out.println(merda);
+
+            RegisterAllocation registerAllocation = new RegisterAllocation(interferenceGraph, maxRegisters);
+            registerAllocation.assignRegisters(method);
+
+        }
 
         return ollirResult;
     }

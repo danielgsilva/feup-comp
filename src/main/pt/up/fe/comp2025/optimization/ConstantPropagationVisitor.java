@@ -3,11 +3,12 @@ package pt.up.fe.comp2025.optimization;
 import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp.jmm.ast.JmmNodeImpl;
 import pt.up.fe.comp.jmm.ast.PreorderJmmVisitor;
+import pt.up.fe.comp.jmm.ast.AJmmVisitor;
 import pt.up.fe.comp2025.ast.Kind;
 
 import java.util.*;
 
-public class ConstantPropagationVisitor extends PreorderJmmVisitor<Void, Void> {
+public class ConstantPropagationVisitor extends AJmmVisitor<Void, Void> {
 
     private boolean changed;
     private final Map<String, Map<String, JmmNode>> constants;
@@ -27,14 +28,18 @@ public class ConstantPropagationVisitor extends PreorderJmmVisitor<Void, Void> {
     protected void buildVisitor() {
         addVisit(Kind.METHOD_DECL, this::visitMethodDecl);
         addVisit(Kind.ASSIGN_STMT, this::visitAssignStmt);
-        addVisit(Kind.WHILE_STMT, this::visitWhileStmt);
         addVisit(Kind.VAR_REF_EXPR, this::visitVarRefExpr);
+        addVisit(Kind.WHILE_STMT, this::visitWhileStmt);
+        addVisit(Kind.IF_STMT, this::visitIfStmt);
         setDefaultVisit(this::defaultVisit);
     }
 
     private Void visitMethodDecl(JmmNode node, Void unused) {
         currentMethod = node.get("name");
         constants.putIfAbsent(currentMethod, new HashMap<>());
+
+        for (var child : node.getChildren())
+            visit(child);
 
         return null;
     }
@@ -49,8 +54,8 @@ public class ConstantPropagationVisitor extends PreorderJmmVisitor<Void, Void> {
         if (Kind.INTEGER_LITERAL.check(rhs) || Kind.BOOLEAN_LITERAL.check(rhs)) {
             constants.get(currentMethod).put(varName, rhs);
         } else {
-            constants.get(currentMethod).remove(varName);
             visit(rhs);
+            constants.get(currentMethod).remove(varName);
         }
 
         return null;
@@ -77,24 +82,40 @@ public class ConstantPropagationVisitor extends PreorderJmmVisitor<Void, Void> {
     }
 
     private Void visitWhileStmt(JmmNode node, Void unused) {
-        // Get the condition of the while statement
-        JmmNode condition = node.getChild(0);
+        // Get the block statement of the while loop
+        var blockStmt = node.getChild(1);
+        var condition = node.getChild(0);
 
-        // Check if the condition contains any variable references
-        var conditionVarRefs = new HashSet<String>();
-        condition.getDescendants(Kind.VAR_REF_EXPR).forEach((elem) -> conditionVarRefs.add(elem.get("name")));
+        for (var child : blockStmt.getChildren()) {
+            if (Kind.ASSIGN_STMT.check(child)){
+                constants.get(currentMethod).remove(child.get("name"));
+            }
+        }
 
-        // Check if any of the variables in the condition are assigned within the while block
-        var usedVarRefs = new HashSet<String>();
-        node.getChild(1).getDescendants(Kind.VAR_REF_EXPR).forEach(
-                (elem) -> {
-                    if (conditionVarRefs.contains(elem.get("name")))
-                        usedVarRefs.add(elem.get("name"));
-                }
-        );
-        constants.get(currentMethod)
-                .keySet()
-                .removeIf(usedVarRefs::contains);
+        visit(blockStmt);
+        visit(condition);
+
+        return null;
+    }
+
+    private Void visitIfStmt(JmmNode node, Void unused) {
+        visit(node.getChild(0));
+
+        var blockStmt1 = node.getChild(1);
+        for (var child : blockStmt1.getChildren()) {
+            visit(child);
+            if (Kind.ASSIGN_STMT.check(child)){
+                constants.get(currentMethod).remove(child.get("name"));
+            }
+        }
+
+        var blockStmt2 = node.getChild(2);
+        for (var child : blockStmt2.getChildren()) {
+            visit(child);
+            if (Kind.ASSIGN_STMT.check(child)){
+                constants.get(currentMethod).remove(child.get("name"));
+            }
+        }
 
         return null;
     }

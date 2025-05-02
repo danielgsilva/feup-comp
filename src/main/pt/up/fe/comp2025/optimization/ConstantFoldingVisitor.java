@@ -2,14 +2,14 @@ package pt.up.fe.comp2025.optimization;
 
 import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp.jmm.ast.JmmNodeImpl;
-import pt.up.fe.comp.jmm.ast.PreorderJmmVisitor;
+import pt.up.fe.comp.jmm.ast.AJmmVisitor;
 import pt.up.fe.comp2025.ast.Kind;
 import pt.up.fe.comp2025.ast.TypeUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class ConstantFoldingVisitor extends PreorderJmmVisitor<Void, Void> {
+public class ConstantFoldingVisitor extends AJmmVisitor<Void, Void> {
 
     private boolean changed;
 
@@ -28,6 +28,9 @@ public class ConstantFoldingVisitor extends PreorderJmmVisitor<Void, Void> {
     }
 
     private Void foldBinaryExpr(JmmNode node, Void unused) {
+        visit(node.getChild(0));
+        visit(node.getChild(1));
+
         var left = node.getChild(0);
         var right = node.getChild(1);
         var op = node.get("op");
@@ -65,13 +68,13 @@ public class ConstantFoldingVisitor extends PreorderJmmVisitor<Void, Void> {
                         return null; // Unsupported operator
 
                 }
-            }
 
-            // Create a new literal node
-            JmmNode newNode = new JmmNodeImpl(left.getHierarchy()); // left or right can be used
-            newNode.put("value", Integer.toString(result));
-            newNode.put("type", left.get("type"));
-            node.replace(newNode);
+                // Create a new literal node
+                JmmNode newNode = new JmmNodeImpl(left.getHierarchy()); // left or right can be used
+                newNode.put("value", Integer.toString(result));
+                newNode.put("type", left.get("type"));
+                node.replace(newNode);
+            }
 
         } else if (Kind.BOOLEAN_LITERAL.check(left) && Kind.BOOLEAN_LITERAL.check(right)) {
             boolean leftVal = Boolean.parseBoolean(left.get("value"));

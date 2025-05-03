@@ -9,39 +9,57 @@ import java.util.*;
 
 public class RegisterAllocation {
 
+    private final Method method;
     private final int maxRegs;
     private final InterferenceGraph graph;
-    private final Map<String, Integer> regAssignment = new HashMap<>();
+    private final Map<String, Integer> regAllocation;
 
-    public RegisterAllocation(InterferenceGraph graph, int maxRegs) {
-        this.graph = graph;
+    public RegisterAllocation(InterferenceGraph graph, int maxRegs, Method method) {
+        this.method = method;
         this.maxRegs = maxRegs;
+        this.graph = graph;
+        this.regAllocation = new HashMap<>();
     }
 
-    public Map<String, Integer> assignRegisters(Method method) {
+    public int getUsedRegisters() {
+        var offset = method.isStaticMethod() ? 0 : 1;
+        offset += method.getParams().size();
+        return regAllocation.size() + offset;
+    }
 
-        Stack<String> coloringOrder = new Stack<>();
-        Set<String> processed = new HashSet<>();
-
+    public boolean graphColoring() {
         Map<String, Set<String>> simplifiedGraph = new HashMap<>();
+
+        // Initialize the simplified interference graph excluding "this" and method parameters
         for (String variable : graph.getGraph().keySet()) {
             if (variable.equals("this") || isMethodParam(method, variable)) continue;
-            simplifiedGraph.put(variable, new HashSet<>(graph.getNeighbors(variable)));
+
+            // Copy neighbors excluding "this" and method parameters
+            Set<String> filteredNeighbors = new HashSet<>();
+            for (String neighbor : graph.getNeighbors(variable)) {
+                if (!neighbor.equals("this") && !isMethodParam(method, neighbor)) {
+                    filteredNeighbors.add(neighbor);
+                }
+            }
+            simplifiedGraph.put(variable, filteredNeighbors);
         }
 
-        // Graph simplification phase
+        Stack<String> stack = new Stack<>();
+        Set<String> processed = new HashSet<>();
+
         while (processed.size() < simplifiedGraph.size()) {
             boolean removed = false;
 
             for (String variable : simplifiedGraph.keySet()) {
                 if (processed.contains(variable)) continue;
 
-                long neighborCount = simplifiedGraph.get(variable).stream()
+                var neighborCount = simplifiedGraph.get(variable).stream()
                         .filter(neigh -> !processed.contains(neigh))
                         .count();
 
-                if (neighborCount < maxRegs || maxRegs <= 0) {
-                    coloringOrder.push(variable);
+                if (maxRegs == 0 || neighborCount < maxRegs) {
+                    // found a node with less than k edges
+                    stack.push(variable);
                     processed.add(variable);
                     removed = true;
                     break;
@@ -49,54 +67,51 @@ public class RegisterAllocation {
             }
 
             if (!removed) {
-                // Spill node (if needed)
-                for (String variable : simplifiedGraph.keySet()) {
-                    if (!processed.contains(variable)) {
-                        coloringOrder.push(variable);
-                        processed.add(variable);
-                        break;
-                    }
-                }
+                // If no node with less than k edges is found, the algorithm cannot proceed
+                return false;
             }
         }
 
-        // Coloring phase
-        while (!coloringOrder.isEmpty()) {
-            String variable = coloringOrder.pop();
-            Set<Integer> takenRegs = new HashSet<>();
+        while (!stack.isEmpty()) {
+            String variable = stack.pop();
+            Set<Integer> takenColors = new HashSet<>();
 
             for (String neighbor : graph.getNeighbors(variable)) {
-                if (regAssignment.containsKey(neighbor)) {
-                    takenRegs.add(regAssignment.get(neighbor));
+                if (regAllocation.containsKey(neighbor)) {
+                    takenColors.add(regAllocation.get(neighbor));
                 }
             }
 
-            int assignedReg = 0;
-            while (takenRegs.contains(assignedReg)) assignedReg++;
+            // Assign the lowest available color (register) to the variable
+            int assignedColor = 0;
+            while (takenColors.contains(assignedColor)) assignedColor++;
 
-            if (maxRegs > 0 && assignedReg >= maxRegs) {
-                throw new RuntimeException("Exceeded max register count: " + maxRegs);
+            // Check if the assigned color exceeds the maximum number of registers
+            if (maxRegs > 0 && assignedColor >= maxRegs) {
+                return false;
             }
 
-            regAssignment.put(variable, assignedReg);
+            regAllocation.put(variable, assignedColor);
         }
 
-        // Apply register offset for 'this' and parameters
-        int baseOffset = method.isStaticMethod() ? 0 : 1;
-        baseOffset += method.getParams().size();
+        return true;
+    }
+
+    public void updateRegisters() {
+        var offset = method.isStaticMethod() ? 0 : 1;
+        offset += method.getParams().size();
 
         for (var entry : method.getVarTable().entrySet()) {
             String varName = entry.getKey();
             Descriptor descriptor = entry.getValue();
 
-            if (descriptor.getScope() == VarScope.LOCAL && regAssignment.containsKey(varName)) {
-                int offsetReg = regAssignment.get(varName) + baseOffset;
-                descriptor.setVirtualReg(offsetReg);
-                System.out.println("[RegisterAllocator] " + varName + " => r" + offsetReg);
+            if (descriptor.getScope() == VarScope.LOCAL && regAllocation.containsKey(varName)) {
+                int virtualReg = regAllocation.get(varName) + offset;
+                descriptor.setVirtualReg(virtualReg);
             }
         }
 
-
+        /*
         // Cleanup: Remove unused temporaries
         var unusedTemps = new ArrayList<String>();
         for (var entry : method.getVarTable().entrySet()) {
@@ -110,15 +125,14 @@ public class RegisterAllocation {
         for (String temp : unusedTemps) {
             method.getVarTable().remove(temp);
         }
-
-        return regAssignment;
+        */
     }
 
 
     private boolean isMethodParam(Method method, String varName) {
         return method.getParams().stream()
-                .filter(Operand.class::isInstance)
-                .map(p -> ((Operand) p).getName())
+                .filter(param -> param instanceof Operand)
+                .map(param -> ((Operand) param).getName())
                 .anyMatch(name -> name.equals(varName));
     }
 }

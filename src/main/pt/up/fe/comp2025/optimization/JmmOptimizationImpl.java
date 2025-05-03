@@ -3,6 +3,8 @@ package pt.up.fe.comp2025.optimization;
 import pt.up.fe.comp.jmm.analysis.JmmSemanticsResult;
 import pt.up.fe.comp.jmm.ollir.JmmOptimization;
 import pt.up.fe.comp.jmm.ollir.OllirResult;
+import pt.up.fe.comp.jmm.report.Report;
+import pt.up.fe.comp.jmm.report.Stage;
 import pt.up.fe.comp2025.CompilerConfig;
 
 import java.util.Collections;
@@ -56,25 +58,66 @@ public class JmmOptimizationImpl implements JmmOptimization {
 
     @Override
     public OllirResult optimize(OllirResult ollirResult) {
-        String maxRegistersConfig = ollirResult.getConfig().get("registerAllocation");
-        int maxRegisters = maxRegistersConfig != null ? Integer.parseInt(maxRegistersConfig) : -1;
+        // Check the option "–r=<n>" that controls the register allocation
+        int configMaxRegs = CompilerConfig.getRegisterAllocation(ollirResult.getConfig());
+        int maxRegs;
+        int usedRegs = 0;
 
-        if (maxRegisters < 0) {
+        // If n is -1, return the result without optimizing (default value)
+        if (configMaxRegs == -1)
             return ollirResult;
-        }
 
+        // call buildCFGs() to ensure that the proper connections between instructions are formed
+        ollirResult.getOllirClass().buildCFGs();
         var classUnit = ollirResult.getOllirClass();
-        for(var method: classUnit.getMethods()) {
-            LivenessAnalysis livenessAnalysis = new LivenessAnalysis();
-            livenessAnalysis.analyze(method);
 
-            InterferenceGraph interferenceGraph = InterferenceGraph.fromLiveness(livenessAnalysis.getOutMap());
-            var merda = interferenceGraph.toString();
-            System.out.println(merda);
+        for (var method : classUnit.getMethods()) {
+            maxRegs = configMaxRegs;
 
-            RegisterAllocation registerAllocation = new RegisterAllocation(interferenceGraph, maxRegisters);
-            registerAllocation.assignRegisters(method);
+            var livenessAnalysis = new LivenessAnalysis(method);
+            livenessAnalysis.analyze();
 
+            var interferenceGraph = new InterferenceGraph(livenessAnalysis.getOutMap(), livenessAnalysis.getDefMap(), method);
+            interferenceGraph.buildGraph();
+
+            boolean success;
+            do {
+                var registerAllocation = new RegisterAllocation(interferenceGraph, maxRegs, method);
+                success = registerAllocation.graphColoring();
+
+                if (!success) {
+                    maxRegs++;
+                } else {
+                    usedRegs = registerAllocation.getUsedRegisters();
+                    registerAllocation.updateRegisters();
+                }
+            } while (!success);
+
+            if (maxRegs > configMaxRegs) {
+                // Create error report
+                var message = String.format("The specified limit of '%d' local variables is insufficient for method '%s'. " +
+                        "A minimum of '%d' local variables is required.", configMaxRegs, method.getMethodName(), maxRegs);
+                ollirResult.getReports().add(
+                        Report.newError(
+                                Stage.OPTIMIZATION,
+                                0,
+                                0,
+                                message,
+                                null)
+                );
+
+                return ollirResult;
+            }
+
+            // Print register allocation details
+            System.out.println("Register allocation for method `" + method.getMethodName() + "`: "
+                    + usedRegs + " registers are needed");
+            for (var entry : method.getVarTable().entrySet()) {
+                String varName = entry.getKey();
+                var descriptor = entry.getValue();
+                System.out.println("Variable " + varName + " assigned to register #" + descriptor.getVirtualReg());
+            }
+            System.out.println();
         }
 
         return ollirResult;

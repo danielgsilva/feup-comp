@@ -39,7 +39,7 @@ public class JmmOptimizationImpl implements JmmOptimization {
         boolean changed;
         do {
             // Apply constant propagation
-            var propagationVisitor = new ConstantPropagationVisitor();
+            var propagationVisitor = new ConstantPropagationVisitor(semanticsResult.getSymbolTable());
             propagationVisitor.visit(ast);
 
             // Apply constant folding

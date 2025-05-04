@@ -22,9 +22,18 @@ public class RegisterAllocation {
     }
 
     public int getUsedRegisters() {
+        int maxRegister = 0;
+
+        for (int reg : regAllocation.values())
+            maxRegister = Math.max(maxRegister, reg);
+
+        // Registers start at 0, so we need to add 1 to the max register used
+        if (!regAllocation.isEmpty())
+            maxRegister++;
+
         var offset = method.isStaticMethod() ? 0 : 1;
         offset += method.getParams().size();
-        return regAllocation.size() + offset;
+        return maxRegister + offset;
     }
 
     public boolean graphColoring() {
@@ -118,7 +127,7 @@ public class RegisterAllocation {
             String varName = entry.getKey();
             Descriptor descriptor = entry.getValue();
 
-            if (varName.startsWith("tmp") && !regAssignment.containsKey(varName)) {
+            if (varName.startsWith("tmp") && !regAllocation.containsKey(varName)) {
                 unusedTemps.add(varName);
             }
         }

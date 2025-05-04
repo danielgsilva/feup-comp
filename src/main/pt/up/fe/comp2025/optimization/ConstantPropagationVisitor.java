@@ -1,5 +1,6 @@
 package pt.up.fe.comp2025.optimization;
 
+import pt.up.fe.comp.jmm.analysis.table.SymbolTable;
 import pt.up.fe.comp.jmm.ast.JmmNode;
 import pt.up.fe.comp.jmm.ast.JmmNodeImpl;
 import pt.up.fe.comp.jmm.ast.PreorderJmmVisitor;
@@ -13,11 +14,13 @@ public class ConstantPropagationVisitor extends AJmmVisitor<Void, Void> {
     private boolean changed;
     private final Map<String, Map<String, JmmNode>> constants;
     private String currentMethod;
+    private final SymbolTable table;
 
-    public ConstantPropagationVisitor() {
+    public ConstantPropagationVisitor(SymbolTable table) {
         this.changed = false;
         this.constants = new HashMap<>();
         this.currentMethod = null;
+        this.table = table;
     }
 
     public boolean didChange() {
@@ -46,6 +49,11 @@ public class ConstantPropagationVisitor extends AJmmVisitor<Void, Void> {
 
     private Void visitAssignStmt(JmmNode node, Void unused) {
         String varName = node.get("name");
+
+        // Check if the variable is a local variable
+        if (!isLocalVariable(varName)) {
+            return null;
+        }
 
         // Get the right-hand side of the assignment
         JmmNode rhs = node.getChild(0);
@@ -87,7 +95,7 @@ public class ConstantPropagationVisitor extends AJmmVisitor<Void, Void> {
         var condition = node.getChild(0);
 
         for (var child : blockStmt.getChildren()) {
-            if (Kind.ASSIGN_STMT.check(child)){
+            if (Kind.ASSIGN_STMT.check(child)) {
                 constants.get(currentMethod).remove(child.get("name"));
             }
         }
@@ -104,7 +112,7 @@ public class ConstantPropagationVisitor extends AJmmVisitor<Void, Void> {
         var blockStmt1 = node.getChild(1);
         for (var child : blockStmt1.getChildren()) {
             visit(child);
-            if (Kind.ASSIGN_STMT.check(child)){
+            if (Kind.ASSIGN_STMT.check(child)) {
                 constants.get(currentMethod).remove(child.get("name"));
             }
         }
@@ -112,7 +120,7 @@ public class ConstantPropagationVisitor extends AJmmVisitor<Void, Void> {
         var blockStmt2 = node.getChild(2);
         for (var child : blockStmt2.getChildren()) {
             visit(child);
-            if (Kind.ASSIGN_STMT.check(child)){
+            if (Kind.ASSIGN_STMT.check(child)) {
                 constants.get(currentMethod).remove(child.get("name"));
             }
         }
@@ -125,5 +133,10 @@ public class ConstantPropagationVisitor extends AJmmVisitor<Void, Void> {
             visit(child);
 
         return null;
+    }
+
+    private boolean isLocalVariable(String varName) {
+        return table.getLocalVariables(currentMethod).stream()
+                .anyMatch(var -> var.getName().equals(varName));
     }
 }

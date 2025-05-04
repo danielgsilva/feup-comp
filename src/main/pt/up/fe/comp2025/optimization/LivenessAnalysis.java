@@ -12,11 +12,13 @@ public class LivenessAnalysis {
     private final Map<Instruction, Set<String>> inMap;
     private final Map<Instruction, Set<String>> outMap;
     private final Map<Instruction, Set<String>> defMap;
+    private final Map<Instruction, Set<String>> useMap;
 
     public LivenessAnalysis(Method method) {
         this.inMap = new HashMap<>();
         this.outMap = new HashMap<>();
         this.defMap = new HashMap<>();
+        this.useMap = new HashMap<>();
         this.method = method;
     }
 
@@ -34,7 +36,9 @@ public class LivenessAnalysis {
         for (Instruction inst : instructions) {
             inMap.put(inst, new HashSet<>());
             outMap.put(inst, new HashSet<>());
+            // Compute DEF[n] and USE[n]
             defMap.put(inst, getDef(inst));
+            useMap.put(inst, getUse(inst));
         }
 
         boolean changed;
@@ -55,14 +59,10 @@ public class LivenessAnalysis {
                     out.addAll(inMap.get(succ));
                 }
 
-                // Compute DEF[n] and USE[n]
-                Set<String> use = getUse(inst);
-                Set<String> def = getDef(inst);
-
                 // IN[n] = USE[n] U (OUT[n] - DEF[n])
-                Set<String> in = new HashSet<>(use);
+                Set<String> in = new HashSet<>(useMap.get(inst));
                 Set<String> outMinusDef = new HashSet<>(out);
-                outMinusDef.removeAll(def);
+                outMinusDef.removeAll(defMap.get(inst));
                 in.addAll(outMinusDef);
 
                 // Update IN and OUT

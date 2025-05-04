@@ -42,6 +42,7 @@ public enum Kind {
     LENGTH_EXPR,
     NOT_EXPR,
     PAREN_EXPR,
+    BLOCK_STMT
     ;
 
     private final String name;

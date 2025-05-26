@@ -277,6 +277,9 @@ public class JasminGenerator {
 
         var virtualReg = reg.getVirtualReg();
 
+        if (virtualReg >= 0 && virtualReg <= 3)
+            return prefix + "store_" + virtualReg + NL;
+
         return prefix + "store " + virtualReg + NL;
     }
 
@@ -290,6 +293,9 @@ public class JasminGenerator {
         limits.increment();
 
         var virtualReg = reg.getVirtualReg();
+
+        if (virtualReg >= 0 && virtualReg <= 3)
+            return prefix + "load_" + virtualReg + NL;
 
         return prefix + "load " + virtualReg + NL;
     }

@@ -41,9 +41,12 @@ public class JasminUtils {
         }
         if (type instanceof BuiltinType builtinType) {
             return switch (builtinType.getKind()) {
-                case INT32 -> "i";
+                case INT32, BOOLEAN -> "i";
                 default -> throw new NotImplementedException(builtinType.getKind());
             };
+        }
+        if (type instanceof ClassType classType) {
+            return "a";
         }
         throw new NotImplementedException(type);
     }
@@ -55,7 +58,9 @@ public class JasminUtils {
         if (type instanceof BuiltinType builtinType) {
             return switch (builtinType.getKind()) {
                 case INT32 -> "I";
-                default -> throw new NotImplementedException(builtinType.getKind());
+                case BOOLEAN -> "Z";
+                case VOID -> "V";
+                case STRING -> "Ljava/lang/String;";
             };
         }
         throw new NotImplementedException(type);

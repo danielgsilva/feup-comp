@@ -1,9 +1,6 @@
 package pt.up.fe.comp2025.backend;
 
-import org.specs.comp.ollir.ClassUnit;
-import org.specs.comp.ollir.LiteralElement;
-import org.specs.comp.ollir.Method;
-import org.specs.comp.ollir.Operand;
+import org.specs.comp.ollir.*;
 import org.specs.comp.ollir.inst.*;
 import org.specs.comp.ollir.type.*;
 import org.specs.comp.ollir.tree.TreeNode;
@@ -15,7 +12,9 @@ import pt.up.fe.specs.util.exceptions.NotImplementedException;
 import pt.up.fe.specs.util.utilities.StringLines;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -36,6 +35,7 @@ public class JasminGenerator {
 
     Method currentMethod;
     Limits limits;
+    private final Map<String, String> importedClassPaths;
 
     private final JasminUtils types;
 
@@ -51,8 +51,16 @@ public class JasminGenerator {
 
         types = new JasminUtils(ollirResult);
 
+        importedClassPaths = new HashMap<>();
+        for (var importPath : ollirResult.getOllirClass().getImports()) {
+            var parts = importPath.split("\\.");
+            var lastPart = parts[parts.length - 1];
+            importedClassPaths.put(lastPart, importPath.replace('.', '/'));
+        }
+
         this.generators = new FunctionClassMap<>();
         generators.put(ClassUnit.class, this::generateClassUnit);
+        generators.put(Field.class, this::generateField);
         generators.put(Method.class, this::generateMethod);
         generators.put(AssignInstruction.class, this::generateAssign);
         generators.put(SingleOpInstruction.class, this::generateSingleOp);
@@ -60,14 +68,91 @@ public class JasminGenerator {
         generators.put(Operand.class, this::generateOperand);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
         generators.put(ReturnInstruction.class, this::generateReturn);
+        generators.put(PutFieldInstruction.class, this::putField);
+        generators.put(GetFieldInstruction.class, this::getField);
         generators.put(NewInstruction.class, this::generateNew);
+        generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
+    }
+
+    private String putField(PutFieldInstruction putFieldInstruction) {
+        var code = new StringBuilder();
+
+        code.append("aload_0").append(NL);
+        limits.increment();
+
+        code.append(generators.apply(putFieldInstruction.getOperands().get(2)));
+
+        var className = currentMethod.getOllirClass().getClassName();
+        var fieldName = putFieldInstruction.getField().getName();
+
+        code.append("putfield ").append(className).append("/").append(fieldName)
+                .append(" ").append(types.getDescriptor(putFieldInstruction.getField().getType())).append(NL);
+
+        limits.decrement(2);
+
+        return code.toString();
+    }
+
+    private String getField(GetFieldInstruction getFieldInstruction) {
+        var code = new StringBuilder();
+
+        var className = currentMethod.getOllirClass().getClassName();
+        var fieldName = getFieldInstruction.getField().getName();
+
+        code.append("aload_0").append(NL);
+        code.append("getfield ").append(className).append("/").append(fieldName)
+                .append(" ").append(types.getDescriptor(getFieldInstruction.getField().getType())).append(NL);
+
+        limits.increment();
+
+        return code.toString();
+    }
+
+    private String generateInvokeSpecial(InvokeSpecialInstruction invokeSpecial) {
+        var code = new StringBuilder();
+
+        Operand caller = (Operand) invokeSpecial.getCaller();
+        if (this.currentMethod.getVarTable().get(caller.getName()) != null) {
+            code.append(generators.apply(caller));
+        }
+
+        var className = "";
+        if (invokeSpecial.getCaller().getType() instanceof ClassType Callertype) {
+            className = Callertype.getName();
+        }
+
+        var fullClassName = importedClassPaths.getOrDefault(className, className);
+        code.append("invokenonvirtual ").append(fullClassName).append("/<init>()V").append(NL);
+
+        limits.decrement();
+
+        return code.toString();
+    }
+
+    private String generateField(Field field) {
+        var code = new StringBuilder();
+
+        code.append(".field ");
+
+        var accessModifier = "";
+        switch (field.getFieldAccessModifier()) {
+            case PUBLIC -> accessModifier = "public ";
+            case PRIVATE -> accessModifier = "private ";
+            case PROTECTED -> accessModifier = "protected ";
+            case DEFAULT -> accessModifier = "";
+        }
+
+        code.append(accessModifier).append("'").append(field.getFieldName()).append("'").append(" ").
+                append(types.getDescriptor(field.getFieldType())).append(NL);
+
+        return code.toString();
     }
 
     private String generateNew(NewInstruction newInstruction) {
         var callerType = newInstruction.getCaller().getType();
 
+        var code = new StringBuilder();
         if (callerType instanceof ArrayType arrayType) {
-            var code = new StringBuilder();
 
             SpecsCheck.checkArgument(newInstruction.getArguments().size() == 1,
                     () -> "Expected number of arguments to be 1: " + newInstruction.getArguments().size());
@@ -79,9 +164,19 @@ public class JasminGenerator {
             limits.increment();
 
             return code.toString();
+        } else if (callerType instanceof ClassType classType) {
+            var className = classType.getName();
+            var fullClassName = importedClassPaths.getOrDefault(className, className);
+
+            code.append("new ").append(fullClassName).append(NL);
+            limits.increment();
+
+            return code.toString();
+
         }
 
-        return "";
+        // TODO: Handle other types of new instructions
+        throw new NotImplementedException(callerType);
     }
 
     private String apply(TreeNode node) {
@@ -119,10 +214,23 @@ public class JasminGenerator {
         var className = ollirResult.getOllirClass().getClassName();
         code.append(".class ").append(className).append(NL).append(NL);
 
-        // TODO: When you support 'extends', this must be updated
-        var fullSuperClass = "java/lang/Object";
+        var fullSuperClass = "";
+        if (classUnit.getSuperClass() != null) {
+            var superClass = classUnit.getSuperClass();
+            if (importedClassPaths.containsKey(superClass)) {
+                fullSuperClass = importedClassPaths.get(superClass);
+            } else {
+                fullSuperClass = superClass.replace('.', '/');
+            }
+        } else {
+            fullSuperClass = "java/lang/Object";
+        }
 
         code.append(".super ").append(fullSuperClass).append(NL);
+
+        for (var field : ollirResult.getOllirClass().getFields()) {
+            code.append(generators.apply(field));
+        }
 
         // generate a single constructor method
         var defaultConstructor = """
@@ -171,9 +279,12 @@ public class JasminGenerator {
 
         var returnType = types.getDescriptor(method.getReturnType());
 
-        code.append("\n.method ").append(modifier)
-                .append(methodName)
-                .append("(" + params + ")" + returnType).append(NL);
+        code.append("\n.method ").append(modifier);
+
+        if (method.isStaticMethod())
+            code.append("static ");
+
+        code.append(methodName).append("(").append(params).append(")").append(returnType).append(NL);
 
         var bodyCode = new StringBuilder();
         for (var inst : method.getInstructions()) {
@@ -222,7 +333,20 @@ public class JasminGenerator {
 
     private String generateLiteral(LiteralElement literal) {
         limits.increment();
-        return "ldc " + literal.getLiteral() + NL;
+
+        int intValue = Integer.parseInt(literal.getLiteral());
+
+        if (intValue == -1) {
+            return "iconst_m1" + NL;
+        } else if (intValue >= 0 && intValue <= 5) {
+            return "iconst_" + intValue + NL;
+        } else if (intValue >= -128 && intValue <= 127) {
+            return "bipush " + intValue + NL;
+        } else if (intValue >= -32768 && intValue <= 32767) {
+            return "sipush " + intValue + NL;
+        } else {
+            return "ldc " + literal.getLiteral() + NL;
+        }
     }
 
     private String generateOperand(Operand operand) {
@@ -255,13 +379,13 @@ public class JasminGenerator {
         var code = new StringBuilder();
 
         if (returnInst.getOperand().isEmpty()) {
-            throw new NotImplementedException("void method");
+            code.append("return").append(NL);
+        } else {
+            var loadOperand = apply(returnInst.getOperand().get());
+            code.append(loadOperand);
+            code.append(types.getPrefix(returnInst.getReturnType())).append("return").append(NL);
+            limits.decrement();
         }
-
-        var loadOperand = apply(returnInst.getOperand().get());
-        code.append(loadOperand);
-        code.append(types.getPrefix(returnInst.getReturnType())).append("return").append(NL);
-        limits.decrement();
 
         return code.toString();
     }

@@ -3,6 +3,7 @@ package pt.up.fe.comp2025.backend;
 public class Limits {
 
     private int maxLocals;
+
     private int maxStack;
     private int currentStack;
 
@@ -20,7 +21,7 @@ public class Limits {
 
     public int getMaxLocals() {
         if (maxLocals == -1) {
-            return 0;
+            return 1;
         }
         return maxLocals;
     }

@@ -24,4 +24,40 @@ public class JasminUtils {
                 accessModifier.name().toLowerCase() + " " :
                 "";
     }
+
+    public String getArrayType(Type type) {
+        if (type instanceof BuiltinType builtinType) {
+            return switch (builtinType.getKind()) {
+                case INT32 -> "int";
+                default -> throw new NotImplementedException(builtinType.getKind());
+            };
+        }
+        throw new NotImplementedException(type);
+    }
+
+    public String getPrefix(Type type) {
+        if (type instanceof ArrayType arrayType) {
+            return "a";
+        }
+        if (type instanceof BuiltinType builtinType) {
+            return switch (builtinType.getKind()) {
+                case INT32 -> "i";
+                default -> throw new NotImplementedException(builtinType.getKind());
+            };
+        }
+        throw new NotImplementedException(type);
+    }
+
+    public String getDescriptor(Type type) {
+        if (type instanceof ArrayType arrayType) {
+            return "[" + getDescriptor(arrayType.getElementType());
+        }
+        if (type instanceof BuiltinType builtinType) {
+            return switch (builtinType.getKind()) {
+                case INT32 -> "I";
+                default -> throw new NotImplementedException(builtinType.getKind());
+            };
+        }
+        throw new NotImplementedException(type);
+    }
 }

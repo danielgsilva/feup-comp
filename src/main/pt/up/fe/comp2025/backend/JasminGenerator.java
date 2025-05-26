@@ -4,13 +4,12 @@ import org.specs.comp.ollir.ClassUnit;
 import org.specs.comp.ollir.LiteralElement;
 import org.specs.comp.ollir.Method;
 import org.specs.comp.ollir.Operand;
-import org.specs.comp.ollir.inst.AssignInstruction;
-import org.specs.comp.ollir.inst.BinaryOpInstruction;
-import org.specs.comp.ollir.inst.ReturnInstruction;
-import org.specs.comp.ollir.inst.SingleOpInstruction;
+import org.specs.comp.ollir.inst.*;
+import org.specs.comp.ollir.type.*;
 import org.specs.comp.ollir.tree.TreeNode;
 import pt.up.fe.comp.jmm.ollir.OllirResult;
 import pt.up.fe.comp.jmm.report.Report;
+import pt.up.fe.specs.util.SpecsCheck;
 import pt.up.fe.specs.util.classmap.FunctionClassMap;
 import pt.up.fe.specs.util.exceptions.NotImplementedException;
 import pt.up.fe.specs.util.utilities.StringLines;
@@ -36,6 +35,7 @@ public class JasminGenerator {
     String code;
 
     Method currentMethod;
+    Limits limits;
 
     private final JasminUtils types;
 
@@ -47,6 +47,7 @@ public class JasminGenerator {
         reports = new ArrayList<>();
         code = null;
         currentMethod = null;
+        limits = null;
 
         types = new JasminUtils(ollirResult);
 
@@ -59,6 +60,28 @@ public class JasminGenerator {
         generators.put(Operand.class, this::generateOperand);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
         generators.put(ReturnInstruction.class, this::generateReturn);
+        generators.put(NewInstruction.class, this::generateNew);
+    }
+
+    private String generateNew(NewInstruction newInstruction) {
+        var callerType = newInstruction.getCaller().getType();
+
+        if (callerType instanceof ArrayType arrayType) {
+            var code = new StringBuilder();
+
+            SpecsCheck.checkArgument(newInstruction.getArguments().size() == 1,
+                    () -> "Expected number of arguments to be 1: " + newInstruction.getArguments().size());
+            code.append(apply(newInstruction.getArguments().getFirst()));
+
+            var typeCode = types.getArrayType(arrayType.getElementType());
+            code.append("newarray ").append(typeCode).append(NL);
+            limits.decrement();
+            limits.increment();
+
+            return code.toString();
+        }
+
+        return "";
     }
 
     private String apply(TreeNode node) {
@@ -133,6 +156,7 @@ public class JasminGenerator {
         //System.out.println("STARTING METHOD " + method.getMethodName());
         // set method
         currentMethod = method;
+        limits = new Limits();
 
         var code = new StringBuilder();
 
@@ -141,29 +165,33 @@ public class JasminGenerator {
 
         var methodName = method.getMethodName();
 
-        // TODO: Hardcoded param types and return type, needs to be expanded
-        var params = "I";
-        var returnType = "I";
+        var params = method.getParams().stream()
+                .map(elem -> types.getDescriptor(elem.getType()))
+                .collect(Collectors.joining());
+
+        var returnType = types.getDescriptor(method.getReturnType());
 
         code.append("\n.method ").append(modifier)
                 .append(methodName)
                 .append("(" + params + ")" + returnType).append(NL);
 
-        // Add limits
-        code.append(TAB).append(".limit stack 99").append(NL);
-        code.append(TAB).append(".limit locals 99").append(NL);
-
+        var bodyCode = new StringBuilder();
         for (var inst : method.getInstructions()) {
             var instCode = StringLines.getLines(apply(inst)).stream()
                     .collect(Collectors.joining(NL + TAB, TAB, NL));
-
-            code.append(instCode);
+            bodyCode.append(instCode);
         }
 
+        // Add limits
+        code.append(TAB).append(".limit stack ").append(limits.getMaxStack()).append(NL);
+        code.append(TAB).append(".limit locals ").append(limits.getMaxLocals()).append(NL);
+
+        code.append(bodyCode);
         code.append(".end method\n");
 
         // unset method
         currentMethod = null;
+        limits = null;
         //System.out.println("ENDING METHOD " + method.getMethodName());
         return code.toString();
     }
@@ -183,12 +211,7 @@ public class JasminGenerator {
 
         var operand = (Operand) lhs;
 
-        // get register
-        var reg = currentMethod.getVarTable().get(operand.getName());
-
-
-        // TODO: Hardcoded for int type, needs to be expanded
-        code.append("istore ").append(reg.getVirtualReg()).append(NL);
+        code.append(store(operand));
 
         return code.toString();
     }
@@ -198,15 +221,12 @@ public class JasminGenerator {
     }
 
     private String generateLiteral(LiteralElement literal) {
+        limits.increment();
         return "ldc " + literal.getLiteral() + NL;
     }
 
     private String generateOperand(Operand operand) {
-        // get register
-        var reg = currentMethod.getVarTable().get(operand.getName());
-
-        // TODO: Hardcoded for int type, needs to be expanded
-        return "iload " + reg.getVirtualReg() + NL;
+        return load(operand);
     }
 
     private String generateBinaryOp(BinaryOpInstruction binaryOp) {
@@ -234,9 +254,43 @@ public class JasminGenerator {
     private String generateReturn(ReturnInstruction returnInst) {
         var code = new StringBuilder();
 
-        // TODO: Hardcoded for int type, needs to be expanded
-        code.append("ireturn").append(NL);
+        if (returnInst.getOperand().isEmpty()) {
+            throw new NotImplementedException("void method");
+        }
+
+        var loadOperand = apply(returnInst.getOperand().get());
+        code.append(loadOperand);
+        code.append(types.getPrefix(returnInst.getReturnType())).append("return").append(NL);
+        limits.decrement();
 
         return code.toString();
+    }
+
+    private String store(Operand operand) {
+        // get register
+        var reg = currentMethod.getVarTable().get(operand.getName());
+
+        var prefix = types.getPrefix(operand.getType());
+
+        limits.updateLocals(reg.getVirtualReg());
+        limits.decrement();
+
+        var virtualReg = reg.getVirtualReg();
+
+        return prefix + "store " + virtualReg + NL;
+    }
+
+    private String load(Operand operand) {
+        // get register
+        var reg = currentMethod.getVarTable().get(operand.getName());
+
+        var prefix = types.getPrefix(operand.getType());
+
+        limits.updateLocals(reg.getVirtualReg());
+        limits.increment();
+
+        var virtualReg = reg.getVirtualReg();
+
+        return prefix + "load " + virtualReg + NL;
     }
 }

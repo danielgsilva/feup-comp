@@ -70,16 +70,78 @@ public class JasminGenerator {
         generators.put(LiteralElement.class, this::generateLiteral);
         generators.put(Operand.class, this::generateOperand);
         generators.put(BinaryOpInstruction.class, this::generateBinaryOp);
+        generators.put(UnaryOpInstruction.class, this::generateUnaryOp);
         generators.put(ReturnInstruction.class, this::generateReturn);
         generators.put(PutFieldInstruction.class, this::generatePutField);
         generators.put(GetFieldInstruction.class, this::generateGetField);
         generators.put(NewInstruction.class, this::generateNew);
         generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
         generators.put(InvokeStaticInstruction.class, this::generateInvokeStatic);
+        generators.put(InvokeVirtualInstruction.class, this::generateInvokeVirtual);
     }
+
+    private String generateInvokeVirtual(InvokeVirtualInstruction invokeVirtual) {
+        var code = new StringBuilder();
+
+        Operand caller = (Operand) invokeVirtual.getCaller();
+        if (this.currentMethod.getVarTable().get(caller.getName()) != null) {
+            code.append(generators.apply(caller));
+        }
+
+        for (var arg : invokeVirtual.getArguments()) {
+            code.append(apply(arg));
+        }
+
+        var className = ((ClassType) invokeVirtual.getCaller().getType()).getName();
+        var fullClassName = importedClassPaths.getOrDefault(className, className);
+        var methodName = ((LiteralElement) invokeVirtual.getMethodName()).getLiteral();
+        var params = invokeVirtual.getArguments().stream()
+                .map(arg -> types.getDescriptor(arg.getType()))
+                .collect(Collectors.joining());
+        var returnType = types.getDescriptor(invokeVirtual.getReturnType());
+
+        code.append("invokevirtual ")
+                .append(fullClassName).append("/")
+                .append(methodName).append("(")
+                .append(params).append(")")
+                .append(returnType).append(NL);
+
+        limits.decrement(invokeVirtual.getArguments().size() + 1);
+        var isVoid = BuiltinType.is(invokeVirtual.getReturnType(), BuiltinKind.VOID);
+        if (!isVoid)
+            limits.increment();
+
+        return code.toString();
+    }
+
+    private String generateUnaryOp(UnaryOpInstruction unaryOp) {
+        var code = new StringBuilder();
+
+        code.append(generators.apply(unaryOp.getOperand()));
+
+        if (unaryOp.getOperation().getOpType() == OperationType.NOTB) {
+            // NOTB is equivalent to XOR with 1
+            code.append("iconst_1").append(NL);
+            limits.increment();
+            code.append("ixor").append(NL);
+            limits.decrement(2);
+            limits.increment();
+        } else {
+            throw new NotImplementedException(unaryOp.getOperation().getOpType());
+        }
+
+        return code.toString();
+    }
+
 
     private String generateOpCond(OpCondInstruction opCondInstruction) {
         var code = new StringBuilder();
+
+        code.append(generators.apply(opCondInstruction.getCondition()));
+        code.append("ifne ").append(opCondInstruction.getLabel()).append(NL);
+
+        limits.decrement(); // TODO: Check if this is correct
+
         return code.toString();
     }
 
@@ -108,12 +170,10 @@ public class JasminGenerator {
                 .append(params).append(")")
                 .append(returnType).append(NL);
 
+        limits.decrement(invokeStatic.getArguments().size());
         var isVoid = BuiltinType.is(invokeStatic.getReturnType(), BuiltinKind.VOID);
-        if (isVoid)
-            limits.decrement(invokeStatic.getArguments().size());
-        else
-            limits.decrement(invokeStatic.getArguments().size() - 1);
-
+        if (!isVoid)
+            limits.increment();
 
         return code.toString();
     }
@@ -173,7 +233,7 @@ public class JasminGenerator {
 
         var className = ((ClassType) invokeSpecial.getCaller().getType()).getName();
         var fullClassName = importedClassPaths.getOrDefault(className, className);
-        code.append("invokenonvirtual ").append(fullClassName).append("/<init>()V").append(NL);
+        code.append("invokespecial ").append(fullClassName).append("/<init>()V").append(NL);
 
         limits.decrement();
 
@@ -351,6 +411,10 @@ public class JasminGenerator {
 
         // Add limits
         code.append(TAB).append(".limit stack ").append(limits.getMaxStack()).append(NL);
+
+        for(var var : method.getVarTable().values())
+            limits.updateLocals(var.getVirtualReg());
+
         code.append(TAB).append(".limit locals ").append(limits.getMaxLocals()).append(NL);
 
         code.append(bodyCode);
@@ -505,7 +569,7 @@ public class JasminGenerator {
 
         var prefix = types.getPrefix(operand.getType());
 
-        limits.updateLocals(reg.getVirtualReg());
+        //limits.updateLocals(reg.getVirtualReg());
         limits.decrement();
 
         var virtualReg = reg.getVirtualReg();
@@ -522,7 +586,7 @@ public class JasminGenerator {
 
         var prefix = types.getPrefix(operand.getType());
 
-        limits.updateLocals(reg.getVirtualReg());
+        //limits.updateLocals(reg.getVirtualReg());
         limits.increment();
 
         var virtualReg = reg.getVirtualReg();

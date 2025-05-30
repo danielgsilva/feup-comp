@@ -20,9 +20,9 @@ public class Limits {
     }
 
     public int getMaxLocals() {
-        if (maxLocals == -1) {
-            return 1;
-        }
+        //if (maxLocals == -1) {
+            //return 1;
+        //}
         return maxLocals;
     }
 

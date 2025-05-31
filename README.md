@@ -1,5 +1,16 @@
 # Compiler Project
 
+| Name                                 | Number    | Contribution (%) |
+|--------------------------------------|-----------|------------------|
+| Ana Frederica Ferreira e Pereira     | 202108167 | -                |
+| Daniel Gomes Silva                   | 201909935 | -                |
+| Miguel Correia Barros Pereira Sousa  | 202207986 | -                |
+
+
+## Extra Features
+
+- We support different array types during semantic analysis.
+
 ## 1. Optimizations 
 
 ### 1.1. Constant propagation and constant folding
@@ -46,3 +57,31 @@ For each method:
     - Uses `updateRegisters()` from `RegisterAllocation` to update the varTable that each OLLIR method has to reflect the new register allocation
   - **Register Allocation Details**  
     - We print the total number of registers needed and the mapping of each variable to its assigned register, as defined in the method's `varTable`
+
+### 1.3. Low Cost Instructions
+
+- `iload_x`, `istore_x`, `astore_x`, `aload_x` (e.g., instead of `iload x`)
+- `iconst_0`, `bipush`, `sipush`, `ldc` (load constants to the stack with the appropriate instruction)
+- use of `iinc` (replace i=i+1 with i++)
+- `iflt`, `ifne`, etc (compare against zero, instead of two values, e.g., `if_icmplt`)
+
+#### Code Example
+```java
+    private String generateLiteral(LiteralElement literal) {
+        limits.increment();
+
+        int intValue = Integer.parseInt(literal.getLiteral());
+
+        if (intValue == -1) {
+            return "iconst_m1" + NL;
+        } else if (intValue >= 0 && intValue <= 5) {
+            return "iconst_" + intValue + NL;
+        } else if (intValue >= -128 && intValue <= 127) {
+            return "bipush " + intValue + NL;
+        } else if (intValue >= -32768 && intValue <= 32767) {
+            return "sipush " + intValue + NL;
+        } else {
+            return "ldc " + literal.getLiteral() + NL;
+        }
+    }
+```

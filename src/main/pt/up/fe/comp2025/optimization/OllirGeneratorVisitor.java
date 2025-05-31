@@ -167,19 +167,41 @@ public class OllirGeneratorVisitor extends AJmmVisitor<Void, String> {
 
 
     private String visitAssignStmt(JmmNode node, Void unused) {
-
-        var rhs = exprVisitor.visit(node.getChild(0));
-
         StringBuilder code = new StringBuilder();
 
-        // code to compute the children
-        code.append(rhs.getComputation());
-
-        // code to compute self
-        // statement has type of lhs
+        var rhsNode = node.getChild(0);
         var thisType = node.get("type");
         String typeString = ollirTypes.toOllirType(thisType);
         var varCode = node.get("name") + typeString;
+
+        // Check for direct binary assignments (e.g., i = i + 1, i = 1 + i or i = i - 1)
+        if (rhsNode.getKind().equals("BinaryExpr") && !isField(node)) {
+            var left = rhsNode.getChild(0);
+            var right = rhsNode.getChild(1);
+
+            boolean isDirectAssign = (left.getKind().equals("VarRefExpr") && left.get("name").equals(node.get("name")) &&
+                    right.getKind().equals("IntegerLiteral"))
+                    || (right.getKind().equals("VarRefExpr") && right.get("name").equals(node.get("name")) &&
+                    left.getKind().equals("IntegerLiteral"));
+
+            if (isDirectAssign) {
+                var op = rhsNode.get("op");
+                var leftExpr = exprVisitor.visit(left);
+                var rightExpr = exprVisitor.visit(right);
+
+                code.append(leftExpr.getComputation());
+                code.append(rightExpr.getComputation());
+                code.append(varCode).append(SPACE).append(ASSIGN).append(typeString).append(SPACE);
+                code.append(leftExpr.getCode()).append(SPACE).append(op);
+                code.append(typeString).append(SPACE).append(rightExpr.getCode()).append(END_STMT);
+                return code.toString();
+            }
+        }
+
+        var rhs = exprVisitor.visit(rhsNode);
+
+        // code to compute the children
+        code.append(rhs.getComputation());
 
         if (isField(node)) {
             code.append("putfield(this, ").append(varCode).append(", ")

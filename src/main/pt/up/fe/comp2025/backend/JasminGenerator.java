@@ -443,6 +443,57 @@ public class JasminGenerator {
         var lhs = assign.getDest();
         var rhs = assign.getRhs();
 
+        // iinc optimization
+        if (rhs instanceof BinaryOpInstruction binOp && lhs instanceof Operand lhsOp) {
+            Operand varOp = null;
+            int value = 0;
+            boolean isAdd = binOp.getOperation().getOpType() == OperationType.ADD;
+            boolean isSub = binOp.getOperation().getOpType() == OperationType.SUB;
+
+            // i = i + N or i = N + i
+            if (isAdd) {
+                if (binOp.getLeftOperand() instanceof Operand leftOp
+                        && leftOp.getName().equals(lhsOp.getName())
+                        && binOp.getRightOperand() instanceof LiteralElement rightLit) {
+                    varOp = leftOp;
+                    value = Integer.parseInt(rightLit.getLiteral());
+                } else if (binOp.getRightOperand() instanceof Operand rightOp
+                        && rightOp.getName().equals(lhsOp.getName())
+                        && binOp.getLeftOperand() instanceof LiteralElement leftLit) {
+                    varOp = rightOp;
+                    value = Integer.parseInt(leftLit.getLiteral());
+                }
+            }
+            // i = i - N
+            if (isSub) {
+                if (binOp.getLeftOperand() instanceof Operand leftOp
+                        && leftOp.getName().equals(lhsOp.getName())
+                        && binOp.getRightOperand() instanceof LiteralElement rightLit) {
+                    varOp = leftOp;
+                    value = -Integer.parseInt(rightLit.getLiteral());
+                }
+            }
+
+            // i = -N + i
+            if (isAdd) {
+                if (binOp.getRightOperand() instanceof Operand rightOp
+                        && rightOp.getName().equals(lhsOp.getName())
+                        && binOp.getLeftOperand() instanceof LiteralElement leftLit) {
+                    int litVal = Integer.parseInt(leftLit.getLiteral());
+                    if (litVal < 0) {
+                        varOp = rightOp;
+                        value = litVal;
+                    }
+                }
+            }
+
+            if (varOp != null && value >= -128 && value <= 127) {
+                var reg = currentMethod.getVarTable().get(lhsOp.getName()).getVirtualReg();
+                code.append("iinc ").append(reg).append(" ").append(value).append(NL);
+                return code.toString();
+            }
+        }
+
         if (lhs instanceof ArrayOperand arrayOperand) {
             code.append(apply(arrayOperand));
             code.append(apply(arrayOperand.getIndexOperands().getFirst()));

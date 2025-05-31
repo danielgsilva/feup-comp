@@ -380,7 +380,6 @@ public class JasminGenerator {
         return code.toString();
     }
 
-
     private String generateMethod(Method method) {
         //System.out.println("STARTING METHOD " + method.getMethodName());
         // set method
@@ -417,6 +416,11 @@ public class JasminGenerator {
             var instCode = StringLines.getLines(apply(inst)).stream()
                     .collect(Collectors.joining(NL + TAB, TAB, NL));
             bodyCode.append(instCode);
+
+            if (inst instanceof CallInstruction && !((CallInstruction) inst).getReturnType().toString().equals("VOID")) {
+                bodyCode.append(TAB).append("pop").append(NL);
+                limits.decrement();
+            }
         }
 
         // Add limits

@@ -63,6 +63,9 @@ public class JasminUtils {
                 case STRING -> "Ljava/lang/String;";
             };
         }
+        if (type instanceof ClassType classType) {
+            return "L" + classType.getName().replace('.', '/') + ";";
+        }
         throw new NotImplementedException(type);
     }
 }

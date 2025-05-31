@@ -2,9 +2,9 @@
 
 | Name                                 | Number    | Contribution (%) |
 |--------------------------------------|-----------|------------------|
-| Ana Frederica Ferreira e Pereira     | 202108167 | -                |
-| Daniel Gomes Silva                   | 201909935 | -                |
-| Miguel Correia Barros Pereira Sousa  | 202207986 | -                |
+| Ana Frederica Ferreira e Pereira     | 202108167 | 25                |
+| Daniel Gomes Silva                   | 201909935 | 50                |
+| Miguel Correia Barros Pereira Sousa  | 202207986 | 25                |
 
 
 ## Extra Features

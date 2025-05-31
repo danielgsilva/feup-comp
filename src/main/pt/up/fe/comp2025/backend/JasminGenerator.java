@@ -78,6 +78,16 @@ public class JasminGenerator {
         generators.put(InvokeSpecialInstruction.class, this::generateInvokeSpecial);
         generators.put(InvokeStaticInstruction.class, this::generateInvokeStatic);
         generators.put(InvokeVirtualInstruction.class, this::generateInvokeVirtual);
+        generators.put(ArrayLengthInstruction.class, this::generateArrayLength);
+    }
+
+    private String generateArrayLength(ArrayLengthInstruction arrayLength) {
+        String code = apply(arrayLength.getCaller()) + "arraylength" + NL;
+
+        limits.decrement();
+        limits.increment();
+
+        return code;
     }
 
     private String generateInvokeVirtual(InvokeVirtualInstruction invokeVirtual) {
@@ -85,7 +95,7 @@ public class JasminGenerator {
 
         Operand caller = (Operand) invokeVirtual.getCaller();
         if (this.currentMethod.getVarTable().get(caller.getName()) != null) {
-            code.append(generators.apply(caller));
+            code.append(apply(caller));
         }
 
         for (var arg : invokeVirtual.getArguments()) {
@@ -117,7 +127,7 @@ public class JasminGenerator {
     private String generateUnaryOp(UnaryOpInstruction unaryOp) {
         var code = new StringBuilder();
 
-        code.append(generators.apply(unaryOp.getOperand()));
+        code.append(apply(unaryOp.getOperand()));
 
         if (unaryOp.getOperation().getOpType() == OperationType.NOTB) {
             // NOTB is equivalent to XOR with 1
@@ -137,7 +147,7 @@ public class JasminGenerator {
     private String generateOpCond(OpCondInstruction opCondInstruction) {
         var code = new StringBuilder();
 
-        code.append(generators.apply(opCondInstruction.getCondition()));
+        code.append(apply(opCondInstruction.getCondition()));
         code.append("ifne ").append(opCondInstruction.getLabel()).append(NL);
 
         limits.decrement(); // TODO: Check if this is correct
@@ -181,7 +191,7 @@ public class JasminGenerator {
     private String generateSingleOpCond(SingleOpCondInstruction singleOpCond) {
         var code = new StringBuilder();
 
-        code.append(generators.apply(singleOpCond.getOperands().getFirst()));
+        code.append(apply(singleOpCond.getOperands().getFirst()));
         code.append("ifne ").append(singleOpCond.getLabel()).append(NL);
 
         limits.decrement(); // TODO: Check if this is correct
@@ -195,7 +205,7 @@ public class JasminGenerator {
         code.append("aload_0").append(NL);
         limits.increment();
 
-        code.append(generators.apply(putFieldInstruction.getOperands().get(2)));
+        code.append(apply(putFieldInstruction.getOperands().get(2)));
 
         var className = currentMethod.getOllirClass().getClassName();
         var fieldName = putFieldInstruction.getField().getName();
@@ -340,7 +350,7 @@ public class JasminGenerator {
         code.append(".super ").append(fullSuperClass).append(NL);
 
         for (var field : ollirResult.getOllirClass().getFields()) {
-            code.append(generators.apply(field));
+            code.append(apply(field));
         }
 
         // generate a single constructor method
@@ -412,7 +422,7 @@ public class JasminGenerator {
         // Add limits
         code.append(TAB).append(".limit stack ").append(limits.getMaxStack()).append(NL);
 
-        for(var var : method.getVarTable().values())
+        for (var var : method.getVarTable().values())
             limits.updateLocals(var.getVirtualReg());
 
         code.append(TAB).append(".limit locals ").append(limits.getMaxLocals()).append(NL);
@@ -430,15 +440,41 @@ public class JasminGenerator {
     private String generateAssign(AssignInstruction assign) {
         var code = new StringBuilder();
 
-        // generate code for loading what's on the right
-        code.append(apply(assign.getRhs()));
-
-        // store value in the stack in destination
         var lhs = assign.getDest();
+        var rhs = assign.getRhs();
+
+        if (lhs instanceof ArrayOperand arrayOperand) {
+            code.append(apply(arrayOperand));
+            code.append(apply(arrayOperand.getIndexOperands().getFirst()));
+            code.append(apply(rhs));
+            code.append("iastore").append(NL);
+
+            limits.decrement(3);
+
+            return code.toString();
+        }
+
+        if (rhs instanceof SingleOpInstruction singleOp
+                && singleOp.getSingleOperand() instanceof ArrayOperand arrayOperandRhs) {
+            code.append(apply(arrayOperandRhs));
+            code.append(apply(arrayOperandRhs.getIndexOperands().getFirst()));
+            code.append("iaload").append(NL);
+            limits.decrement(2);
+            limits.increment();
+            if (!(lhs instanceof Operand operand)) {
+                throw new NotImplementedException(lhs.getClass());
+            }
+            code.append(store(operand));
+            return code.toString();
+        }
+
 
         if (!(lhs instanceof Operand)) {
             throw new NotImplementedException(lhs.getClass());
         }
+
+        // generate code for loading what's on the right
+        code.append(apply(rhs));
 
         var operand = (Operand) lhs;
 
@@ -479,10 +515,10 @@ public class JasminGenerator {
         // load values on the left
         code.append(apply(binaryOp.getLeftOperand()));
 
-        var compareAgainstZero = false;
-
         // TODO: Hardcoded for int type, needs to be expanded
         //var typePrefix = "i";
+
+        var compareAgainstZero = false;
 
         // apply operation
         var op = switch (binaryOp.getOperation().getOpType()) {
@@ -585,6 +621,10 @@ public class JasminGenerator {
         var reg = currentMethod.getVarTable().get(operand.getName());
 
         var prefix = types.getPrefix(operand.getType());
+
+        // TODO: Check if this is correct
+        if (operand instanceof ArrayOperand)
+            prefix = "a";
 
         //limits.updateLocals(reg.getVirtualReg());
         limits.increment();

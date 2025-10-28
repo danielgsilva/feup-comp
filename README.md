@@ -1,10 +1,10 @@
-# Compiler Project
+# Compiler Project 2025
 
 | Checkpoints | Grade (%) | 
 |-|-|
-| CP1 - Frontend | 97 | 
-| CP2 - Intermediate Representation and Optimizations | 100 | 
-| CP3 - Backend | 99.5 | 
+| [CP1 - Frontend](./COMP2025_CP1.pdf) | 97 | 
+| [CP2 - Intermediate Representation and Optimizations](./COMP2025_CP2.pdf) | 100 | 
+| [CP3 - Backend]((./COMP2025_CP3.pdf)) | 99.5 | 
 
 ## 1. Optimizations 
 

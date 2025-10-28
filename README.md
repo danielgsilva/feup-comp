@@ -1,15 +1,10 @@
 # Compiler Project
 
-| Name                                 | Number    | Contribution (%) |
-|--------------------------------------|-----------|------------------|
-| Ana Frederica Ferreira e Pereira     | 202108167 | 25                |
-| Daniel Gomes Silva                   | 201909935 | 50                |
-| Miguel Correia Barros Pereira Sousa  | 202207986 | 25                |
-
-
-## Extra Features
-
-- We support different array types during semantic analysis.
+| Checkpoints | Grade (%) | 
+|-|-|
+| CP1 - Frontend | 97 | 
+| CP2 - Intermediate Representation and Optimizations | 100 | 
+| CP3 - Backend | 99.5 | 
 
 ## 1. Optimizations 
 
